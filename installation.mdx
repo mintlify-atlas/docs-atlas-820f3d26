@@ -1,0 +1,196 @@
+---
+title: "Build and install Chromex from source code"
+description: "Clone the Chromex repository, build all four packages, install the native messaging host, and load the extension in Chrome Developer mode."
+---
+
+The source install path gives you a local build you can modify, test, and reload. You clone the repository, build all four packages, run the native host installer, and then load the `packages/extension/dist` folder as an unpacked extension in Chrome. This is the recommended path for contributors and anyone who wants to run a custom build.
+
+## Prerequisites
+
+Before you start, make sure you have the following installed on your machine:
+
+- **Node.js** (version compatible with the project's devDependencies — TypeScript 5.x and esbuild 0.25.x are used)
+- **npm** (comes with Node.js)
+- **Git**
+- **Local Codex app-server** running on your machine — Chromex cannot connect to models without it
+
+<Note>
+  The native host installer writes a manifest file to a location that Chrome reads on startup. It works on Chrome-supported desktop operating systems: Linux, macOS, and Windows.
+</Note>
+
+## Clone and build
+
+<Steps>
+  <Step title="Clone the repository">
+    <CodeGroup>
+
+    ```bash Clone
+    git clone https://github.com/GENEXIS-AI/chromex.git
+    cd chromex
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="Install dependencies">
+    <CodeGroup>
+
+    ```bash Install
+    npm install
+    ```
+
+    </CodeGroup>
+
+    This installs dependencies for all workspace packages: `extension`, `bridge`, `native-host`, and `shared`.
+  </Step>
+  <Step title="Build all packages">
+    <CodeGroup>
+
+    ```bash Build
+    npm run build
+    ```
+
+    </CodeGroup>
+
+    The build compiles all four packages in dependency order. The extension output lands in `packages/extension/dist`.
+  </Step>
+  <Step title="Install the native messaging host">
+    <CodeGroup>
+
+    ```bash Install native host
+    node scripts/install-native-host.mjs
+    ```
+
+    </CodeGroup>
+
+    This registers the Chrome Native Messaging host on your operating system. Chrome uses this registration to find and launch the native host process when the extension connects.
+
+    See [Why the native host is needed](#why-the-native-host-is-needed) below for more detail.
+  </Step>
+  <Step title="Load the extension in Chrome">
+    1. Open `chrome://extensions` in Chrome.
+    2. Enable **Developer mode** using the toggle in the top-right corner.
+    3. Click **Load unpacked**.
+    4. Select the following folder:
+
+    ```text
+    packages/extension/dist
+    ```
+
+    Chromex appears in your extensions list.
+  </Step>
+  <Step title="Connect to Codex">
+    Open Chromex from the Chrome toolbar or side panel and follow the onboarding flow to connect to your local Codex app-server.
+  </Step>
+</Steps>
+
+## Why the native host is needed
+
+Chrome extensions cannot open arbitrary sockets or spawn local processes directly. Chrome's Native Messaging API provides a controlled channel: the extension sends messages to a registered host process, and the host relays them to the local bridge daemon.
+
+The `install-native-host.mjs` script writes a JSON manifest to the location Chrome expects for your operating system:
+
+- **macOS**: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`
+- **Linux**: `~/.config/google-chrome/NativeMessagingHosts/`
+- **Windows**: a registry key under `HKCU\Software\Google\Chrome\NativeMessagingHosts\`
+
+The manifest tells Chrome where to find the native host binary and which extension ID is allowed to connect. Without this registration, the bridge connection fails and Chromex cannot communicate with the local Codex app-server.
+
+## Verifying the install
+
+After loading the extension and connecting to Codex:
+
+1. Open Chromex from the toolbar or side panel.
+2. Check the onboarding or system status screen — it shows whether the native bridge is connected and whether models are available.
+3. If the bridge is connected and models load, the install is complete.
+
+<Tip>
+  Type a message in the chat input to confirm end-to-end connectivity. If a response comes back, everything is working.
+</Tip>
+
+## Updating
+
+When you want to pull in the latest changes:
+
+<Steps>
+  <Step title="Pull the latest commits">
+    <CodeGroup>
+
+    ```bash Pull
+    git pull
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="Reinstall dependencies if needed">
+    <CodeGroup>
+
+    ```bash Install
+    npm install
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="Rebuild">
+    <CodeGroup>
+
+    ```bash Build
+    npm run build
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="Reload the extension">
+    Go to `chrome://extensions` and click the reload button on the Chromex card. Chrome reloads the extension from `packages/extension/dist`.
+  </Step>
+</Steps>
+
+You only need to run `node scripts/install-native-host.mjs` again if the native host binary path changes (for example, after cloning to a different directory).
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Native host missing or forbidden">
+    If Chromex shows a native host connection error, run the following commands and then reload the extension:
+
+    ```bash
+    npm run build
+    node scripts/install-native-host.mjs
+    ```
+
+    Go to `chrome://extensions`, find the Chromex card, and click the reload button. Then check the Chromex onboarding or system status screen.
+  </Accordion>
+  <Accordion title="Model list does not load">
+    Confirm that the native bridge is connected in the Chromex status screen, then sign in through the app-server-backed login flow. The model list is fetched from the Codex app-server and only loads after a successful connection.
+  </Accordion>
+  <Accordion title="Chrome still shows old UI after rebuilding">
+    Run `npm run build`, then reload the extension card in `chrome://extensions`. Confirm Chrome is loading `packages/extension/dist` and not a cached version.
+  </Accordion>
+  <Accordion title="Page context is unavailable">
+    Open Chromex from the target tab, or approve the Chrome site permission prompt when a workflow requests access to the page. Some page-reading features require host permissions that Chrome asks for on demand.
+  </Accordion>
+  <Accordion title="Smoke test fails because no browser is installed">
+    Install the Playwright Chromium runtime, then rerun the smoke test:
+
+    ```bash
+    npm run smoke:install-browser
+    npm run smoke
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/developer/architecture">
+    Understand how the four packages fit together and how the Chrome–Codex bridge protocol works.
+  </Card>
+  <Card title="Building and testing" icon="hammer" href="/developer/build">
+    Run typechecks, unit tests, and the browser smoke test during development.
+  </Card>
+  <Card title="Release management" icon="tag" href="/developer/release">
+    Create Chrome Web Store packages and public release artifacts from the source tree.
+  </Card>
+  <Card title="Quick install" icon="rocket" href="/quickstart">
+    Skip the build — download the pre-built zip and install in five minutes.
+  </Card>
+</CardGroup>

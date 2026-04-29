@@ -1,0 +1,106 @@
+---
+title: "Image editing and generation workflows in Chromex"
+description: "Chromex supports non-destructive editing of page screenshots and uploaded images, plus Codex image generation — outputs are stored locally by the bridge daemon."
+---
+
+Chromex handles two distinct image workflows: editing an existing image by describing the changes you want, and generating a new image from a text description. Both workflows route through the Codex image pipeline via the local bridge daemon, which stores all originals and generated outputs on your machine.
+
+## Image editing
+
+Image editing takes an existing source image — either a screenshot of the current visible page or an image you uploaded in the composer — and applies changes you describe in natural language.
+
+### Image sources for editing
+
+<CardGroup cols={2}>
+  <Card title="Page screenshot" icon="camera">
+    Chromex can capture the visible area of the current tab as the source image. The route planner uses the `page-image` target and takes a screenshot automatically when you describe an edit.
+  </Card>
+  <Card title="Uploaded image" icon="upload">
+    Attach an image file in the composer using the attachment icon. Chromex treats the uploaded file as the edit target. Supported upload formats: PNG, JPEG, WebP, GIF.
+  </Card>
+</CardGroup>
+
+When both a page screenshot and an uploaded image are available, the route planner resolves the ambiguity by examining your message to determine which source you intend. If it cannot determine the target, it will ask you to clarify.
+
+### How to trigger image editing
+
+<Steps>
+  <Step title="Provide an image source">
+    Either navigate to the page you want to edit a screenshot of, or attach an image file using the attachment icon in the composer.
+  </Step>
+  <Step title="Describe the change">
+    Type a natural-language description of what you want changed. For example: "Remove the background", "Make the text larger", or "Change the button color to blue".
+  </Step>
+  <Step title="Review the result">
+    Chromex sends the image and your instructions to the Codex image pipeline. The edited image appears in the chat as a preview. The original is never overwritten.
+  </Step>
+  <Step title="Export if needed">
+    To save the edited image, use the download or export control that appears with the preview. The original file remains unchanged on your machine.
+  </Step>
+</Steps>
+
+### Non-destructive editing
+
+Chromex never overwrites your original image. The bridge daemon keeps a separate copy of each input image (stored with the `input-` prefix) and stores each generated or edited result as a new file (stored with the `generated-` prefix). Both files are tracked in a local manifest so you can access them later.
+
+<Tip>
+Generated and edited images are saved in your workspace's `.codex-sidepanel/generated-images/` folder by default, or in a system temp directory if no workspace is configured. You can open this folder directly from the side panel.
+</Tip>
+
+## Image generation
+
+Image generation creates a new image from a text description, without requiring an existing image as a source.
+
+### How to generate an image
+
+Type a prompt that clearly signals you want a new image created. For example:
+
+- "Create an image of a mountain at sunset"
+- "Generate a logo for a coffee shop with a minimalist design"
+- "Draw a diagram showing how a TCP handshake works"
+
+The route planner classifies this as an `image-generate` task and routes it to the Codex image generation pipeline. The result appears in the chat as a preview image.
+
+<Note>
+Image generation uses the Codex image generation capability, which requires a model that supports image output. If the current model does not support image generation, Chromex will select a compatible model automatically.
+</Note>
+
+### Generated image storage
+
+Every generated image is stored locally by the bridge daemon before it is shown in the chat. The daemon downloads the image from Codex, writes it to the configured output directory, and registers it in the local asset manifest. This means:
+
+- Images are available offline after generation
+- No generated image is ever stored on a remote server after the generation call completes
+- You can retrieve any generated image from the output folder even after closing the side panel
+
+## Image asset management
+
+The bridge daemon's `BridgeImageAssetStore` tracks all images — inputs and outputs — using a local manifest file (`.codex-sidepanel-image-assets.json`) in the output directory. Each asset has a unique reference ID used internally to serve previews back to the extension.
+
+<CardGroup cols={2}>
+  <Card title="Open image folder" icon="folder-open">
+    Use the **Open folder** action in the side panel to reveal the image output directory in your file manager. The folder opens to the location of the most recently generated image.
+  </Card>
+  <Card title="Asset tracking" icon="list">
+    The manifest records each asset's path, MIME type, and creation time. Assets are loaded from the manifest on startup, so previously generated images remain accessible across sessions.
+  </Card>
+</CardGroup>
+
+## Supported image formats
+
+| Format | Extension | Notes |
+|---|---|---|
+| PNG | `.png` | Default output format for generated images |
+| JPEG | `.jpg`, `.jpeg` | Supported for upload and editing |
+| WebP | `.webp` | Supported for upload and editing |
+| GIF | `.gif` | Supported for upload; generation output format depends on Codex |
+
+<Warning>
+Screenshots captured from the current page are always PNG. Editing a page screenshot produces a PNG output regardless of the original page's image format.
+</Warning>
+
+## Site-aware image context
+
+When you ask Chromex to edit or describe something visual on the current page, the route planner captures a screenshot of the visible area and includes it as the image context. This works on any tab that Chromex has permission to access — you do not need to manually take a screenshot first.
+
+For pages that use the `vision` or `hybrid` read strategy — such as dashboards, video players, and canvas-based UIs — the screenshot is used alongside or instead of the DOM text to give the model accurate visual context about what you are seeing.

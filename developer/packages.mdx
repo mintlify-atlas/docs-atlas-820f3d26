@@ -1,0 +1,144 @@
+---
+title: "Chromex monorepo packages and responsibilities"
+description: "A guide to the four npm workspace packages in Chromex, their source layouts, interdependencies, and the TypeScript configuration they share."
+---
+
+Chromex is a multi-package TypeScript monorepo managed with npm workspaces. The root `package.json` declares `"workspaces": ["packages/*"]`, so every package under `packages/` is treated as a linked local dependency. You run builds, tests, and typechecks from the repo root using the workspace flag — you do not need to `cd` into individual packages.
+
+## Package overview
+
+<CardGroup cols={2}>
+  <Card title="@codex-sidepanel/extension" icon="puzzle-piece" href="/developer/architecture">
+    Chrome MV3 side panel extension. Owns the chat UI, voice composer, profile picker, settings panel, background service worker, content scripts injected into pages, and an offline/realtime audio worklet.
+  </Card>
+  <Card title="@codex-sidepanel/bridge" icon="server" href="/developer/bridge-protocol">
+    Local bridge daemon. Connects to the Codex app-server, parses file attachments (PDF, DOCX, spreadsheets), manages generated image assets on disk, runs voice sessions over WebRTC or WebSocket, and coordinates Playwright browser automation.
+  </Card>
+  <Card title="@codex-sidepanel/native-host" icon="arrow-right-arrow-left" href="/developer/architecture">
+    Chrome Native Messaging host relay. Decodes the 4-byte-length-prefixed frames Chrome sends over stdin, forwards them as newline-delimited JSON to the bridge process, and encodes responses back. Contains no business logic.
+  </Card>
+  <Card title="@codex-sidepanel/shared" icon="package" href="/developer/architecture">
+    Shared types, profile templates, agentic routing normalization, prompt routing logic, read-strategy policy, context budget constants, implicit-context helpers, and harness utilities. Both the extension and the bridge depend on this package.
+  </Card>
+</CardGroup>
+
+## Interdependencies
+
+```text
+@codex-sidepanel/shared
+        ↑
+@codex-sidepanel/bridge
+        ↑
+@codex-sidepanel/native-host   (resolves bridge dist at runtime)
+        ↑
+@codex-sidepanel/extension     (imports shared types at build time)
+```
+
+| Package | Depends on |
+|---|---|
+| `@codex-sidepanel/shared` | (none — zero local dependencies) |
+| `@codex-sidepanel/bridge` | `@codex-sidepanel/shared` |
+| `@codex-sidepanel/native-host` | `@codex-sidepanel/bridge` (runtime path only) |
+| `@codex-sidepanel/extension` | `@codex-sidepanel/shared` |
+
+The native host does not `import` the bridge at compile time. It spawns `packages/bridge/dist/cli.js` as a child process, resolving the path relative to its own `dist/` directory. This means you must build the bridge before running the native host.
+
+The build order enforced by the root `build` script is:
+
+```
+shared → bridge → native-host → extension
+```
+
+## Key source directories
+
+### `packages/extension/src/`
+
+| Directory | Purpose |
+|---|---|
+| `sidepanel/` | All side panel UI modules: chat, composer, voice, profiles, settings, i18n |
+| `background/` | Service worker, native bridge client, message routing |
+| `content/` | Content scripts injected into pages for DOM extraction and browser control |
+
+### `packages/bridge/src/`
+
+| File / module | Purpose |
+|---|---|
+| `router.ts` | `BridgeRpcRouter` — dispatches all incoming RPC methods |
+| `codex-app-server.ts` | HTTP/WebSocket client for the Codex app-server |
+| `codex-plane.ts` | `AppServerCodexPlane`, `CodexImagePlane`, `CodexVoicePlane` — typed wrappers |
+| `agentic-router.ts` | `CodexAgenticRouterPlane` — calls Codex to produce a route plan |
+| `browser-actions.ts` | `CodexBrowserActionPlane` — browser DOM action planning |
+| `file-attachments.ts` | `prepareUserFileAttachments` — reads and converts local file content |
+| `image-assets.ts` | `BridgeImageAssetStore` — manages generated images on disk |
+| `playwright-runtime.ts` | `PlaywrightRuntimeManager` — installs and queries the Playwright runtime |
+| `diagnostics.ts` | `BridgeDiagnosticLogStore` — writes structured diagnostic log entries |
+| `harness.ts` | `BridgeHarnessRuntime` — workspace harness snapshot |
+| `platform.ts` | Resolves config, data, secret-store, and log directories per OS |
+
+### `packages/native-host/src/`
+
+| File | Purpose |
+|---|---|
+| `relay.ts` | `NativeHostRelay` — the main relay loop |
+| `framing.ts` | `encodeNativeMessage`, `NativeMessageStreamDecoder` — binary frame codec |
+| `environment.ts` | `createBridgeProcessEnv` — reduced env allowlist for the bridge child process |
+| `cli.ts` | Entry point — instantiates and starts the relay |
+
+### `packages/shared/src/`
+
+| Module | Purpose |
+|---|---|
+| `types.ts` | All shared TypeScript interfaces and union types |
+| `agentic-route.ts` | `normalizeAgenticRoutePlan`, `createFallbackAgenticRoutePlan` |
+| `prompt-routing.ts` | `planPromptRouting`, `inferUserFileAttachmentKind` |
+| `profiles.ts` | `listProfileTemplates`, `getProfileTemplate` |
+| `read-strategy.ts` | Read strategy policy helpers |
+| `context-budget.ts` | Token budget constants |
+| `harness.ts` | Workspace harness snapshot types |
+| `context.ts` | `PageContextEnvelope` and context assembly utilities |
+| `implicit-context.ts` | Implicit context helpers |
+| `realtime-voices.ts` | Voice session state types |
+| `action-cards.ts` | Action card type definitions |
+| `agentic-image-edit.ts` | Image edit routing helpers |
+
+## TypeScript configuration
+
+All packages extend `tsconfig.base.json` at the repo root. The shared settings are:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true
+  }
+}
+```
+
+<Note>
+`exactOptionalPropertyTypes` and `noUncheckedIndexedAccess` are intentionally strict. If you add a new property to a shared type and TypeScript complains in an unexpected place, that flag is usually why.
+</Note>
+
+Each package's own `tsconfig.json` extends this base and adds package-specific includes, excludes, and `outDir` settings. The extension's build uses esbuild (via `scripts/build-extension.mjs`) rather than `tsc` for bundling, but still uses `tsc --noEmit` for type checking.
+
+## Adding a new package
+
+If you add a package under `packages/`, follow these steps to wire it into the repo:
+
+1. Create `packages/<name>/package.json` with `"name": "@codex-sidepanel/<name>"` and `"type": "module"`.
+2. Create `packages/<name>/tsconfig.json` that extends `../../tsconfig.base.json`.
+3. Add `"build"`, `"test"`, and `"typecheck"` scripts matching the existing packages.
+4. Add the workspace build step to the root `build` script in the correct order.
+5. Add the workspace test step to the root `test` script.
+6. Add the workspace typecheck step to the root `typecheck` script.
+
+<Warning>
+The build order in the root `build` script matters. Always build `shared` before any package that imports it, or the TypeScript compiler will not find the generated `.d.ts` files.
+</Warning>

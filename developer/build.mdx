@@ -1,0 +1,153 @@
+---
+title: "Build Chromex from source for development"
+description: "Step-by-step instructions for cloning, installing, building all packages, loading the extension in Chrome, and creating Web Store and public release artifacts."
+---
+
+Building Chromex from source takes five minutes on a machine with Node.js and Git already installed. The output is an unpacked Chrome extension directory you load directly into Chrome, plus an installed native host binary that Chrome can spawn on demand.
+
+## Prerequisites
+
+- **Node.js** 24 or later (LTS). The CI matrix uses Node.js 24.
+- **npm** (bundled with Node.js).
+- **Git**.
+
+<Note>
+The CI workflow pins Node.js 24 via `actions/setup-node`. Using an older LTS release may work but is not tested.
+</Note>
+
+## Clone and install
+
+```bash
+git clone https://github.com/GENEXIS-AI/chromex.git
+cd chromex
+npm install
+```
+
+`npm install` links all local workspace packages together. You do not need to run `npm install` inside individual packages.
+
+## Full build
+
+<Steps>
+  <Step title="Build all packages">
+    Run the root build script. It builds the four workspace packages in dependency order: `shared` → `bridge` → `native-host` → `extension`.
+
+    ```bash
+    npm run build
+    ```
+
+    Build output goes to each package's `dist/` directory. The folder you load in Chrome is:
+
+    ```text
+    packages/extension/dist
+    ```
+  </Step>
+  <Step title="Install the native host">
+    Chrome needs a manifest entry that tells it where to find the native host binary. Run the install script once after each build:
+
+    ```bash
+    node scripts/install-native-host.mjs
+    ```
+
+    This writes the Chrome Native Messaging host manifest to the correct OS-specific location and points it at `packages/native-host/dist/bin.js`.
+  </Step>
+  <Step title="Load the extension in Chrome">
+    1. Open `chrome://extensions`.
+    2. Enable **Developer mode** (toggle in the top-right corner).
+    3. Select **Load unpacked**.
+    4. Choose `packages/extension/dist`.
+
+    Chromex appears in the Chrome toolbar. Open it and follow onboarding to connect to Codex.
+  </Step>
+</Steps>
+
+## Individual package builds
+
+You can build a single workspace package when iterating on one layer:
+
+<CodeGroup>
+
+```bash shared
+npm run build --workspace @codex-sidepanel/shared
+```
+
+```bash bridge
+npm run build --workspace @codex-sidepanel/bridge
+```
+
+```bash native-host
+npm run build --workspace @codex-sidepanel/native-host
+```
+
+```bash extension
+npm run build --workspace @codex-sidepanel/extension
+```
+
+</CodeGroup>
+
+<Warning>
+Always build `shared` before building `bridge`, `native-host`, or `extension`. Those packages import from `@codex-sidepanel/shared` and need the compiled `.d.ts` files in `packages/shared/dist/`.
+</Warning>
+
+## Type-check without building
+
+```bash
+npm run typecheck
+```
+
+This runs `tsc --noEmit` across the bridge, native-host, and extension workspaces (after building shared so the type declarations exist). Use this for fast feedback during development without waiting for esbuild to bundle the extension.
+
+## Sync extension and diagnose load issues
+
+If Chrome shows a stale UI or the extension fails to load, run:
+
+```bash
+npm run sync:extension
+```
+
+This rebuilds the extension and runs `scripts/diagnose-extension-load.mjs --sync`, which checks the `packages/extension/dist` output for common load problems and reports them.
+
+## Packaging release artifacts
+
+### Chrome Web Store package
+
+```bash
+npm run package:webstore
+```
+
+This rebuilds the extension, stages `packages/extension/dist`, strips the unpacked-install `manifest.key`, removes source maps and local build metadata, validates the resulting zip, and writes it to:
+
+```text
+output/chrome-web-store/
+```
+
+Upload this zip directly to the Chrome Web Store developer dashboard.
+
+### Public release artifacts
+
+```bash
+npm run package:public
+```
+
+This runs a full build and then creates two artifacts under `output/public-release/`:
+
+| File | Purpose |
+|---|---|
+| `chromex-<version>-public-source-<timestamp>.zip` | Sanitized source archive for GitHub publication |
+| `chromex-<version>-unpacked-extension-<timestamp>.zip` | Ready-to-unzip Chrome Developer Mode package |
+| `chromex-public-source.zip` | Stable name for the README direct-download link |
+| `chromex-unpacked-extension.zip` | Stable name for the README direct-download link |
+
+After unzipping `chromex-unpacked-extension.zip`, select the `chromex-extension` folder in **Load unpacked**.
+
+<Note>
+The public release archive excludes `docs/`, `.codex/`, `CODEX.md`, build output, local backups, generated images, credentials, signing keys, and native-host generated manifests. See [Release process](/developer/release) for the full exclusion list.
+</Note>
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Unknown bridge method` error in the side panel | Run `npm run build`, then `node scripts/install-native-host.mjs`, then reload the extension. |
+| Chrome still shows old UI after editing source | Run `npm run build`, then reload the extension card in `chrome://extensions`. |
+| Native host not found or permission denied | Run `node scripts/install-native-host.mjs` again. On macOS and Linux, check that the binary has execute permission. |
+| Type errors after pulling changes | Run `npm run build --workspace @codex-sidepanel/shared` first to regenerate `.d.ts` files, then recheck. |

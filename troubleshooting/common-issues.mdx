@@ -1,0 +1,119 @@
+---
+title: "Fix common Chromex installation and runtime issues"
+description: "Step-by-step fixes for native host errors, missing models, page context failures, stale UI, voice issues, and browser smoke test failures in Chromex."
+---
+
+Most Chromex issues fall into one of a few categories: the native host is not installed or registered correctly, the extension is loading stale build output, or a Chrome permission has not been granted. Work through the relevant accordion below to resolve the problem.
+
+<AccordionGroup>
+  <Accordion title="Native host missing or forbidden">
+    Chrome reports an error such as "specified native messaging host not found" or "access to the specified native messaging host is forbidden". This means the native host is either not installed or registered to a different extension origin.
+
+    **Resolution:**
+
+    1. Rebuild the extension and bridge:
+       ```bash
+       npm run build
+       ```
+    2. Register the native host for your current extension origin:
+       ```bash
+       node scripts/install-native-host.mjs
+       ```
+    3. Open `chrome://extensions`, find the Chromex card, and click the reload icon (circular arrow).
+    4. Open Chromex and navigate to **Onboarding → System status** to confirm the native host shows as connected.
+
+    If the error persists, confirm Chrome is loading the extension from `packages/extension/dist` and not from a stale or different directory. The native host manifest is registered to the exact extension origin from that build.
+  </Accordion>
+
+  <Accordion title="Model list does not load">
+    The model selector is empty, spinning, or shows an error. This happens when the native bridge is not running or you are not signed in.
+
+    **Resolution:**
+
+    1. Check **Onboarding → System status**. The native host indicator should show **Connected** and the Codex binary indicator should show **Connected** or **Automatic**.
+    2. If the native host is not connected, follow the steps in **Native host missing or forbidden** above.
+    3. If the native host is connected but models are still missing, sign in through the Codex app-server login flow: open Chromex settings and select **Sign in with ChatGPT** or **Use API key**.
+    4. After signing in, the model list refreshes automatically.
+  </Accordion>
+
+  <Accordion title="Page context is unavailable">
+    Chromex reports that it cannot read the current page, or a workflow that requires page content fails with a permission error.
+
+    **Resolution:**
+
+    1. Make sure you opened Chromex while the target tab was active. `activeTab` access is granted per invocation — if you opened the side panel on a different tab, the page permission does not carry over.
+    2. If Chrome shows a permission prompt asking to access the site, approve it. Chromex requests per-origin host permissions only when a feature needs them.
+    3. Note that Chromex cannot read restricted browser pages (`chrome://`, `chrome-extension://`, `about:`, `devtools:`, the Chrome Web Store). Switch to a regular `http://` or `https://` page.
+    4. If the prompt was dismissed, grant the site permission manually: `chrome://extensions → Chromex → Details → Permissions → Site access`.
+  </Accordion>
+
+  <Accordion title="Chrome still shows old UI after a code change">
+    You made changes to the extension source but Chrome is still displaying the old interface.
+
+    **Resolution:**
+
+    1. Rebuild the extension:
+       ```bash
+       npm run build
+       ```
+    2. Open `chrome://extensions` and click the reload icon on the Chromex card.
+    3. Confirm Chrome is loading the extension from the correct folder:
+       ```text
+       packages/extension/dist
+       ```
+       If the path shown under the extension name is different, remove the extension and re-load it with **Load unpacked** pointing to `packages/extension/dist`.
+    4. Hard-reload the side panel: close and reopen it from the Chrome toolbar.
+  </Accordion>
+
+  <Accordion title="Voice transcription not working">
+    The microphone button does not respond, transcription produces no text, or Chrome shows a microphone permission error.
+
+    **Resolution:**
+
+    1. Open `chrome://extensions → Chromex → Details → Permissions` and confirm the microphone permission is enabled.
+    2. If it is not listed, use the microphone button in Chromex to trigger the Chrome permission prompt, then approve it.
+    3. Check your system microphone settings. On macOS, go to **System Settings → Privacy & Security → Microphone** and confirm Chrome is listed and enabled. On Windows, go to **Settings → Privacy → Microphone** and confirm Chrome has access.
+    4. If the permission is granted but transcription still fails, check the bridge connection status in **Onboarding → System status**. Voice transcription is routed through the local bridge.
+  </Accordion>
+
+  <Accordion title="Extension not appearing in the side panel">
+    The Chromex side panel does not appear in Chrome's side panel menu, or the toolbar icon is missing.
+
+    **Resolution:**
+
+    1. Open `chrome://extensions` and confirm **Developer mode** is toggled on in the top-right corner. Unpacked extensions require Developer mode.
+    2. Confirm the extension is loaded and enabled. If you see a toggle that is off, turn it on.
+    3. If the extension is not listed, select **Load unpacked** and choose:
+       ```text
+       packages/extension/dist
+       ```
+    4. After loading, click the puzzle-piece icon in the Chrome toolbar and pin Chromex to the toolbar.
+    5. To open the side panel, click the Chromex toolbar icon or use the Chrome side panel button on the right edge of the browser.
+  </Accordion>
+
+  <Accordion title="Browser smoke test fails">
+    Running `npm run smoke` exits with an error about a missing browser or a browser launch failure.
+
+    **Resolution:**
+
+    1. Install the Playwright Chromium runtime before running the smoke test:
+       ```bash
+       npm run smoke:install-browser
+       ```
+    2. Then run the smoke test:
+       ```bash
+       npm run smoke
+       ```
+    3. If the test still fails after installing the browser, confirm the build is up to date:
+       ```bash
+       npm run build
+       npm run smoke
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Still stuck?
+
+If none of the above resolves your issue, open the diagnostics log and include it when reporting a bug. See [Diagnostics and logs](/troubleshooting/diagnostics) for how to find and open the log folder.
+
+Report bugs at [https://github.com/GENEXIS-AI/chromex/issues](https://github.com/GENEXIS-AI/chromex/issues).

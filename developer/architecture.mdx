@@ -1,0 +1,88 @@
+---
+title: "Chromex architecture: extension, bridge, and Codex"
+description: "How Chromex connects a Chrome MV3 side panel to the Codex app-server through a local native bridge, and why the security boundary is designed the way it is."
+---
+
+Chromex is built as four cooperating layers. The Chrome extension lives inside the browser sandbox and owns the user interface; everything that needs to reach Codex or the local filesystem runs outside that sandbox, through a native process you control. Understanding this split is the fastest way to reason about where a bug lives, where a new feature belongs, and what the security implications of a change are.
+
+## The four-layer stack
+
+```text
+Chrome Extension  →  Native Messaging Host  →  Local Bridge  →  Codex app-server
+(packages/extension)  (packages/native-host)   (packages/bridge)
+```
+
+Each arrow is a strict boundary. Chrome enforces the first one with the [Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging) protocol. The second is a child-process spawn. The third is an HTTP/WebSocket connection to the locally running Codex app-server.
+
+## Why the boundary exists
+
+Chrome MV3 extensions cannot hold long-lived secrets securely. `chrome.storage` is readable by any extension with the same profile, and extension code is delivered from a web origin even when loaded unpacked. Chromex keeps OAuth tokens, ChatGPT session credentials, and OpenAI API keys entirely out of the extension. The local bridge process owns those secrets and never exposes them back to the browser side. The extension can authenticate a user, but it does so by asking the bridge to start the Codex login flow — the token never crosses the native messaging channel.
+
+## Layer responsibilities
+
+<CardGroup cols={2}>
+  <Card title="Extension" icon="puzzle-piece" href="/developer/packages">
+    `packages/extension` — Chrome MV3 side panel, chat UI, voice composer, profile picker, background service worker, content scripts injected into pages, and an offline/realtime audio worklet for voice input.
+  </Card>
+  <Card title="Native Host" icon="arrow-right-arrow-left" href="/developer/packages">
+    `packages/native-host` — a thin relay process that Chrome spawns on demand. It decodes the 4-byte-length-prefixed Native Messaging frames from Chrome, forwards them as newline-delimited JSON to the bridge process, and pipes responses back.
+  </Card>
+  <Card title="Bridge" icon="server" href="/developer/bridge-protocol">
+    `packages/bridge` — the local daemon that talks to the Codex app-server, handles file I/O and format conversion (PDF, DOCX, spreadsheets), manages generated image assets, runs voice sessions over WebRTC or WebSocket, and coordinates Playwright browser automation.
+  </Card>
+  <Card title="Shared" icon="package" href="/developer/packages">
+    `packages/shared` — shared TypeScript types, profile templates, agentic routing normalization, prompt routing logic, read-strategy policy, context budget constants, and harness utilities used by both the bridge and the extension.
+  </Card>
+</CardGroup>
+
+## Data flow for a user message
+
+The following steps trace a chat message from the composer to the streaming response.
+
+<Steps>
+  <Step title="User sends a message">
+    The user types in the side panel and submits. The side panel calls the background service worker through `chrome.runtime.sendMessage`.
+  </Step>
+  <Step title="Background builds context">
+    The background worker reads the active tab URL, optional `@`-picked tabs, any uploaded file attachments, and any explicit context flags (page, selection, screenshot). It assembles these into a `PromptSendParams` object.
+  </Step>
+  <Step title="Background sends to native host">
+    The background worker writes a `BridgeRequest` with `method: "prompt.send"` to the native messaging port, encoding it with a 4-byte little-endian length prefix.
+  </Step>
+  <Step title="Native host relays to bridge">
+    The `NativeHostRelay` decodes the frame and writes the JSON line to the bridge child process stdin.
+  </Step>
+  <Step title="Bridge runs agentic routing">
+    `BridgeRpcRouter` dispatches to `prompt.send`. Before forwarding to Codex, the bridge may call `route.plan` to run the agentic route planner, which decides which context sources to fetch (current page, open tabs, browser history, uploaded files) and which read strategy to use (DOM, vision, hybrid, site adapter).
+  </Step>
+  <Step title="Bridge calls Codex app-server">
+    The bridge sends the assembled prompt and context to the Codex app-server over HTTP. Streaming response tokens arrive as server-sent events. The bridge emits `message.delta` events back to the extension via the native messaging channel.
+  </Step>
+  <Step title="Extension renders the response">
+    The background worker receives the streaming events and forwards them to the side panel, which appends each delta to the chat message in real time.
+  </Step>
+</Steps>
+
+## Agentic routing
+
+Before the bridge sends a prompt to Codex, it can call the route planner (`route.plan`) to decide what context to collect. The `normalizeAgenticRoutePlan` function in `packages/shared/src/agentic-route.ts` takes the raw LLM-produced plan and normalizes it into a typed `AgenticRoutePlan`. That plan records:
+
+- **context sources** — which of `current-page`, `open-tabs`, `history`, `selection`, or `image` to fetch
+- **read strategy** — `dom`, `vision`, `hybrid`, or `adapter`
+- **task type** — `general`, `document-analysis`, `visual-analysis`, `image-generate`, `image-edit`, or `comparison`
+- **browser control** — whether to run a `dom` or `playwright` browser automation action, and on which surface
+- **intent** — a normalized summary of the user's goal, action, and target
+
+This keeps the route planning logic in shared code so both the bridge and any future client can reuse it without duplicating policy.
+
+## Security boundary summary
+
+| Side | Owns | Does not own |
+|---|---|---|
+| Extension (browser) | UI state, tab metadata, content script results | OAuth tokens, API keys, long-lived credentials |
+| Bridge (local process) | Codex credentials, file I/O, image assets, voice sessions | DOM access, Chrome APIs |
+| Native host | Message framing only | Business logic of any kind |
+
+<Note>
+Native-host child processes and workspace hooks run with a reduced environment variable allowlist. The bridge never re-exports credentials through native messaging responses.
+</Note>

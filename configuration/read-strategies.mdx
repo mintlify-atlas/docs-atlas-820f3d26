@@ -1,0 +1,131 @@
+---
+title: "Page reading strategies: DOM, vision, and adapters"
+description: "Learn how Chromex picks between dom, vision, hybrid, and adapter strategies to extract page content, and when to use each one for best results."
+---
+
+When you ask Chromex something about the current page, it needs to extract that page's content before sending it to Codex. Chromex uses four distinct strategies to do this: `dom`, `vision`, `hybrid`, and `adapter`. The right strategy depends on what kind of content the page contains — plain text, visual layouts, interactive dashboards, or a recognized site with a dedicated adapter.
+
+## Strategies at a glance
+
+| Strategy | How it reads the page | Best for |
+|----------|-----------------------|----------|
+| `dom` | Reads the page's text content via DOM traversal | Text-heavy pages: articles, docs, blogs, code |
+| `vision` | Captures a screenshot and sends it to a vision model | Visual pages with few words: dashboards, infographics, maps |
+| `hybrid` | Combines DOM text extraction with a screenshot | Pages that mix prose with important visuals or canvas elements |
+| `adapter` | Runs a site-specific adapter to extract structured data | YouTube, Gmail, arXiv, and other supported sites |
+
+## How Chromex selects a strategy
+
+Chromex runs the following decision logic automatically on each page before reading:
+
+```typescript
+function determineReadStrategy(input: ReadStrategyInput): ReadStrategy {
+  if (input.adapterMatched) {
+    return "adapter";
+  }
+  if (input.hasCanvas) {
+    return "hybrid";
+  }
+  if (input.hasVideo || input.hasDenseInteractiveUi) {
+    return "hybrid";
+  }
+  if (input.textLength < 500 && input.imageCount > 0) {
+    return "vision";
+  }
+  return "dom";
+}
+```
+
+In plain terms:
+
+1. **Adapter wins first.** If the current URL matches a known site adapter, Chromex uses `adapter` regardless of page content.
+2. **Canvas or video → hybrid.** Pages with a `<canvas>` element, video content, or dense interactive UI (like spreadsheet editors or drawing tools) get the `hybrid` strategy so both visual and text content are captured.
+3. **Sparse text + images → vision.** If the page has fewer than 500 characters of body text but contains images, Chromex switches to `vision` rather than returning an empty DOM extract.
+4. **Everything else → dom.** Standard text pages use `dom` — it's the fastest and most token-efficient option.
+
+## Strategy details
+
+<AccordionGroup>
+  <Accordion title="dom — text extraction via DOM">
+    The `dom` strategy reads the page's visible text by walking the DOM tree and extracting `bodyText`. It is fast, requires no screenshot, and works well for any page where the important content is readable prose or structured text.
+
+    **Use `dom` for:** blog posts, documentation sites, Wikipedia, GitHub files, PDFs opened in the browser, and most news articles.
+
+    **Limitations:** `dom` cannot capture content rendered inside `<canvas>`, WebGL surfaces, or image-heavy layouts where meaning comes from visual arrangement rather than text.
+  </Accordion>
+  <Accordion title="vision — screenshot + vision model">
+    The `vision` strategy captures a screenshot of the current viewport and sends it to a vision-capable model. No DOM text extraction is performed. The model interprets the image directly.
+
+    **Use `vision` for:** data dashboards, charts, infographics, maps, image galleries, and any page where the visual layout carries most of the meaning.
+
+    **Limitations:** `vision` requires a vision-capable model to be active. It uses more tokens than `dom` and cannot extract text that falls outside the captured viewport. Screen capture requires the screen capture permission — Chrome will prompt for it if not already granted.
+  </Accordion>
+  <Accordion title="hybrid — DOM text + screenshot">
+    The `hybrid` strategy combines both approaches: it extracts DOM text and captures a screenshot. Both are sent to Codex together. This is the default for pages with `<canvas>` elements, video players, or dense interactive UI.
+
+    **Use `hybrid` for:** web apps with both prose and visual components — design tools, online spreadsheets, video pages with description text, Notion or Confluence pages with embedded images.
+
+    **Limitations:** `hybrid` is the most resource-intensive strategy. It requires a vision-capable model and screen capture permission.
+  </Accordion>
+  <Accordion title="adapter — site-specific structured extraction">
+    Site adapters run before any other strategy. When the current URL matches a known adapter, Chromex extracts rich structured data instead of raw DOM text or screenshots. The adapter payload is passed to Codex via `adapterPayload` on the page context envelope.
+
+    **Supported adapters include:**
+
+    - **YouTube** — current video transcript with timestamps, chapter markers, and seek action support (clicking a timestamp in the response seeks the video)
+    - **Gmail / Naver Mail** — current thread subject, sender, recipient, and message body with threading context
+    - **arXiv / research pages** — paper title, abstract, authors, and section structure
+    - **News and articles** — headline, byline, publication date, and article body
+    - **Shopping pages** — product title, price, description, and review summary
+    - **Travel sites** — itinerary details, pricing, and availability context
+    - **Korean work services** — structured context for supported Korean productivity platforms
+
+    Adapters produce richer, more structured context than generic DOM extraction, which leads to more accurate and relevant Codex responses.
+  </Accordion>
+</AccordionGroup>
+
+## Site adapters
+
+Chromex ships site-aware adapters for a range of popular services. When you open a supported site and ask Chromex about the page, the adapter activates automatically:
+
+<CardGroup cols={2}>
+  <Card title="YouTube" icon="youtube">
+    Extracts the video transcript with timestamps. Codex can reference specific moments, and clicking a timestamp in the response seeks the video to that position.
+  </Card>
+  <Card title="Gmail and Naver Mail" icon="envelope">
+    Reads the current email thread — subject, participants, and full message chain — for summarization, drafting replies, and follow-up tasks.
+  </Card>
+  <Card title="arXiv and research pages" icon="flask">
+    Extracts paper metadata, abstract, and section structure from arXiv and similar research publication pages.
+  </Card>
+  <Card title="News and articles" icon="newspaper">
+    Pulls the headline, author, publication date, and article body — filtering out navigation chrome and ads.
+  </Card>
+  <Card title="Shopping" icon="cart-shopping">
+    Captures product name, price, description, and available reviews for comparison and decision support.
+  </Card>
+  <Card title="Travel" icon="plane">
+    Reads booking details, itinerary information, and availability data from supported travel sites.
+  </Card>
+</CardGroup>
+
+## Practical guidance
+
+<Tabs>
+  <Tab title="Reading articles and docs">
+    Most text pages use `dom` automatically. If Codex gives an incomplete or inaccurate summary of an article, the page may be dynamically loaded (content injected by JavaScript after the initial DOM parse). Try scrolling through the full article before asking Chromex to read it, so the DOM is fully populated.
+  </Tab>
+  <Tab title="Reading dashboards and charts">
+    For analytics dashboards, BI tools, or chart-heavy pages, `vision` or `hybrid` is selected automatically when Chromex detects a canvas element or dense interactive UI. If screen capture permission has not been granted, Chrome will prompt you when Chromex first needs it.
+  </Tab>
+  <Tab title="Working with YouTube">
+    On any YouTube video page, Chromex activates the YouTube adapter automatically. Ask questions like "summarize this video", "what does the speaker say about X at the 5-minute mark", or "list the key timestamps". Chromex can also seek the video to a specific timestamp directly from the response.
+  </Tab>
+  <Tab title="Using Gmail">
+    Open an email thread and ask Chromex to summarize it, draft a reply, or extract action items. The Gmail adapter reads the full thread context rather than just the visible viewport.
+  </Tab>
+</Tabs>
+
+<Note>
+  Read strategy selection is automatic. You do not need to configure it manually for most workflows. Chromex evaluates each page fresh based on its content and URL.
+</Note>

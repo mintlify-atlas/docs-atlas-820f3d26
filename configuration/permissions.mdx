@@ -1,0 +1,126 @@
+---
+title: "Chrome permissions Chromex requests and why"
+description: "Understand which Chrome permissions Chromex requires at install time, which are requested at runtime, and how to grant or revoke them from chrome://extensions."
+---
+
+Chromex follows Chrome's minimum-permission principle: it declares only the permissions it cannot function without at install time, and requests all other permissions at runtime — only when a feature actually needs them. You are never asked to grant broad site access upfront.
+
+## Required permissions
+
+These permissions are declared in the extension manifest and granted automatically when you install Chromex. You cannot remove them without uninstalling the extension.
+
+| Permission | Why Chromex needs it |
+|------------|----------------------|
+| `sidePanel` | Opens and maintains the persistent Chrome side panel |
+| `activeTab` | Reads the URL and title of the tab you are currently viewing, and injects content scripts into it when a workflow requests page access |
+| `scripting` | Runs content scripts in the active tab for DOM reading, page interaction, and browser-control workflows |
+| `storage` | Persists extension settings, enabled skill IDs, and (if opt-in) conversation history in local browser storage |
+| `nativeMessaging` | Connects to the native host relay that bridges the extension to the local Codex bridge daemon |
+| `offscreen` | Maintains an offscreen document for audio processing used by voice workflows — required for push-to-talk transcription and live voice mode |
+| `contextMenus` | Adds Chromex entries to the Chrome right-click context menu |
+
+<Note>
+  `activeTab` grants per-tab access only for the tab you are actively using. It does not give Chromex persistent access to all your tabs or any background tabs.
+</Note>
+
+## Optional permissions
+
+These permissions are declared as `optional_permissions` in the manifest. Chrome does not grant them at install time. Chromex requests each one only when you trigger a feature that requires it — Chrome will show a permission prompt the first time.
+
+<AccordionGroup>
+  <Accordion title="tabs — tab listing and @ picker">
+    **Manifest declaration:** `optional_permissions: ["tabs"]`
+
+    The `tabs` permission is required to read the title, URL, favicon, and state (pinned, audible) of all your open tabs. Chromex requests it when you use the `@` tab picker to select tabs as context for a message, or when a workflow needs to enumerate open tabs.
+
+    Without this permission, cross-tab context is unavailable. Chromex will prompt you to grant it the first time you use the `@` picker.
+
+    **Rationale shown in prompt:** "Allow Codex to list your open tabs only when you ask for cross-tab context."
+  </Accordion>
+  <Accordion title="history — browser history context">
+    **Manifest declaration:** `optional_permissions: ["history"]`
+
+    The `history` permission lets Chromex search your browser history and include relevant past pages as context. It is requested when you ask a question that involves your browsing history.
+
+    **Rationale shown in prompt:** "Allow Codex to search your browser history only when you ask for it."
+
+    <Warning>
+      Browser history is sensitive. Chromex only reads history entries in direct response to a user-initiated request — it does not background-scan your history.
+    </Warning>
+  </Accordion>
+  <Accordion title="Screen capture — vision and hybrid workflows">
+    **Manifest declaration:** `optional_host_permissions: ["<all_urls>"]` combined with `chrome.tabs.captureVisibleTab`
+
+    Screen capture access is required for the `vision` and `hybrid` read strategies, for page screenshot features, and for image workflows that operate on the visible page content.
+
+    Chrome will show a permission prompt the first time Chromex needs to take a screenshot. You can revoke this at any time from `chrome://extensions`.
+  </Accordion>
+  <Accordion title="Microphone — voice input">
+    Microphone access is required for voice transcription and live voice mode. Chromex does not access the microphone until you initiate a voice session. Chrome's standard microphone permission dialog appears on first use.
+
+    You can manage microphone access per-site from Chrome settings or revoke it from `chrome://extensions → Chromex → Permissions`.
+  </Accordion>
+  <Accordion title="Site access — per-tab page reading">
+    **Manifest declaration:** `optional_host_permissions: ["<all_urls>"]`
+
+    Chromex never requests blanket access to all websites at install time. The `<all_urls>` host permission is declared optional and is requested only for the specific origin of the tab you are asking Chromex to read.
+
+    When a workflow needs to inject a content script into a page (to read DOM content, run browser automation, or interact with the page), Chromex requests the `*://hostname/*` origin pattern for that tab. You approve or deny access for that specific site.
+
+    **Restricted URLs that Chromex can never access:**
+
+    - `chrome://` and `chrome-extension://` URLs
+    - `about:` pages
+    - `chrome.google.com/webstore` and `chromewebstore.google.com`
+    - `devtools:`, `edge:`, `file:`, `view-source:`, `moz-extension:` URLs
+
+    Attempts to read these pages are blocked before any permission prompt is shown.
+  </Accordion>
+</AccordionGroup>
+
+## How Chrome prompts you
+
+When Chromex needs a permission for the first time, Chrome shows a dialog describing what the permission grants and asking you to approve or deny. The prompts are triggered by user actions — Chromex never requests permissions proactively on startup.
+
+<Tabs>
+  <Tab title="Tabs and history">
+    These appear as Chrome's standard optional permission dialog. Chromex provides a rationale message that explains exactly why the permission is needed at that moment.
+  </Tab>
+  <Tab title="Microphone">
+    Chrome shows its standard microphone access dialog the first time you start a voice session. The dialog originates from Chrome, not from the extension.
+  </Tab>
+  <Tab title="Site access">
+    For page-reading workflows on a specific site, Chrome shows a host permission request scoped to that site's origin. You grant access for that one origin, not for all sites.
+  </Tab>
+</Tabs>
+
+## Granting and revoking permissions
+
+You can review and change all Chromex permissions at any time:
+
+<Steps>
+  <Step title="Open chrome://extensions">
+    Type `chrome://extensions` in the address bar and press Enter.
+  </Step>
+  <Step title="Find Chromex">
+    Locate the Chromex card in the extension list. Click **Details**.
+  </Step>
+  <Step title="Open the Permissions section">
+    Scroll to the **Permissions** section. You will see a list of all granted optional permissions and site access entries.
+  </Step>
+  <Step title="Revoke what you no longer need">
+    Click the toggle or remove button next to any permission to revoke it. Chromex will re-request that permission the next time a feature that depends on it is triggered.
+  </Step>
+</Steps>
+
+## Why permissions are split this way
+
+Chromex keeps required permissions minimal for two reasons:
+
+1. **Credentials stay on your machine.** The native bridge architecture means authentication flows through the local Codex app-server. The extension itself never handles API keys, OAuth tokens, or session cookies, so it does not need broad network or storage permissions.
+
+2. **Browser actions use minimal scope.** Page reading, tab access, history, and screen capture are powerful capabilities. By making them optional and scoped to the specific context where they are needed, Chromex gives you clear visibility into what it accesses and when.
+
+<Tip>
+  If you want the tightest possible permission footprint, you can use Chromex in text-only mode (no voice, no screenshots, no history) with only the required permissions granted. All optional features degrade gracefully when their permissions are absent.
+</Tip>

@@ -1,0 +1,211 @@
+---
+title: "Bridge RPC protocol — methods and message format"
+description: "Reference for the JSON-RPC-style protocol between the Chrome extension and the Chromex bridge, covering all RPC methods, message format, and streaming events."
+---
+
+The local bridge exposes a JSON-RPC-style protocol over Chrome Native Messaging. Every message the extension sends to the bridge is a request object; every response is either a result or an error. The bridge can also push streaming notification events to the extension while a request is in flight.
+
+## Message format
+
+### Request
+
+```json
+{
+  "id": "abc-123",
+  "method": "prompt.send",
+  "params": { ... }
+}
+```
+
+### Success response
+
+```json
+{
+  "id": "abc-123",
+  "result": { ... }
+}
+```
+
+### Error response
+
+```json
+{
+  "id": "abc-123",
+  "error": {
+    "message": "Unknown bridge method: foo.bar"
+  }
+}
+```
+
+All messages are newline-delimited JSON on the bridge side. The native host wraps them with a 4-byte little-endian length prefix for the Chrome Native Messaging wire format.
+
+### TypeScript types
+
+The request and response shapes are defined in `packages/bridge/src/types.ts`:
+
+```typescript
+interface BridgeRequest<TParams = unknown> {
+  id: string;
+  method: string;
+  params: TParams;
+}
+
+interface BridgeResponse<TResult = unknown> {
+  id: string;
+  result?: TResult;
+  error?: {
+    message: string;
+  };
+}
+```
+
+## BridgeRpcRouter
+
+`BridgeRpcRouter` in `packages/bridge/src/router.ts` is the single entry point for all incoming RPC calls. It receives a `BridgeRequest`, dispatches on `request.method` in a `switch` statement, and returns a `BridgeResponse`. An optional `emit` callback on `handle()` receives streaming `BridgeEvent` objects during long-running methods such as `prompt.send` and `voice.session.start`.
+
+```typescript
+class BridgeRpcRouter {
+  async handle(
+    request: BridgeRequest,
+    options?: { emit?: (event: BridgeEvent) => void },
+  ): Promise<BridgeResponse>
+}
+```
+
+## Bridge streaming events
+
+While a request is in flight the bridge can push `BridgeEvent` objects through the `emit` callback. The extension's background worker forwards these to the side panel. Key event types include:
+
+| Event type | When it fires |
+|---|---|
+| `message.delta` | Streaming text token from Codex |
+| `message.completed` | Full text of a completed message item |
+| `message.image` | Image asset ready for display |
+| `turn.started` | Codex started processing a new turn |
+| `turn.completed` | Codex finished the turn |
+| `turn.activity` | Agentic activity (reasoning, file read, browser, etc.) |
+| `route.plan.created` | Agentic route plan produced |
+| `voice.session.started` | Voice session established |
+| `voice.transcript.delta` | Streaming voice transcript token |
+| `account.login.completed` | Login flow finished |
+| `account.updated` | Account auth state changed |
+
+## RPC method reference
+
+### Account and auth
+
+| Method | Description |
+|---|---|
+| `account.status` | Returns the current `AccountStatus`: auth mode (`chatgpt`, `apikey`, or `null`), whether Codex is authenticated, plan type, and whether multimodal features are available. |
+| `account.login.start` | Starts a login flow. Params: `{ type: "chatgpt" \| "chatgptDeviceCode" \| "apiKey", apiKey?: string }`. Resolves immediately; the result arrives as an `account.login.completed` event. |
+| `account.login.cancel` | Cancels an in-progress login flow. Params: `{ loginId: string }`. |
+| `account.logout` | Logs out from Codex. Returns `{}`. |
+| `account.rate_limits.read` | Returns the current `CodexRateLimits` object or `null`. |
+
+### Models
+
+| Method | Description |
+|---|---|
+| `model.list` | Returns the array of available `CodexModelOption` objects. Each option includes `id`, `label`, `description`, `isDefault`, `supportsImages`, and optional `reasoningEfforts`. |
+
+### Threads and sessions
+
+| Method | Description |
+|---|---|
+| `thread.list` | Lists thread summaries. Params: `{ cwd?: string, limit?: number, searchTerm?: string }`. |
+| `thread.read` | Reads the full transcript of a thread. Params: `{ threadId: string }`. |
+| `thread.turns.list` | Lists turn summaries for a thread. Params: `{ threadId: string, limit?: number }`. |
+| `session.open` | Opens a new session and returns `{ threadId }`. Params: `{ cwd?: string, model?: string }`. |
+| `session.resume` | Resumes an existing session. Params: `{ threadId: string }`. Returns `{ threadId }`. |
+| `thread.compact.start` | Starts or completes a thread context compaction. Params: `{ threadId?: string, waitForCompletion?: boolean }`. |
+
+### Prompts and routing
+
+| Method | Description |
+|---|---|
+| `prompt.send` | Sends a prompt with context to Codex and streams the response via `message.delta` / `message.completed` events. Returns `{ threadId, turnId }`. |
+| `route.plan` | Runs the agentic route planner. Takes an `AgenticRouteInput` and emits `route.plan.created`. Returns a normalized `AgenticRoutePlan`. |
+| `browser.action.plan` | Plans a browser DOM action from a message and DOM snapshot. Emits `browser.action.plan.created`. Returns a `BrowserDomActionPlan`. |
+| `turn.steer` | Steers an active turn with a new message (same params as `prompt.send` plus `expectedTurnId`). |
+| `turn.interrupt` | Interrupts an active turn. Params: `{ threadId: string, turnId: string }`. |
+
+### Images
+
+| Method | Description |
+|---|---|
+| `image.generate.start` | Starts an image generation job. Emits `message.image` events as previews become available. Returns `{ jobId, previewRef, previewRefs }`. |
+| `image.edit.start` | Starts a non-destructive image edit job. Returns `{ jobId, previewRef }`. |
+| `image.edit.preview` | Polls or fetches the preview for an edit job. Params: `{ jobId: string }`. Returns `{ previewRef }`. |
+| `image.asset.read` | Reads image asset data in chunks. Params: `{ previewRef, offset?, length? }`. Returns base64 data with pagination cursors. |
+| `image.asset.delete` | Deletes an image asset. Params: `{ previewRef: string }`. Returns `{ deleted, previewRef, path }`. |
+| `image.asset.folder` | Returns the `ImageAssetFolderSnapshot` describing the local image output folder. |
+| `image.asset.folder.open` | Opens the image output folder in the OS file manager. Params: `{ folder?: string \| null }`. |
+
+### Voice
+
+| Method | Description |
+|---|---|
+| `voice.session.start` | Starts a voice session. Emits `voice.session.started`, `voice.sdp`, `voice.transcript.delta`, and related events. Returns `VoiceSessionState`. |
+| `voice.session.append_text` | Appends a text message to the active voice session. Params: `{ threadId?: string, text: string }`. |
+| `voice.session.append_audio` | Appends a raw audio frame to the active voice session. Params include sample rate, channel count, and base64 audio data. |
+| `voice.session.stop` | Stops the active voice session. Params: `{ threadId?: string, sessionId?: string }`. |
+
+### Profiles
+
+| Method | Description |
+|---|---|
+| `profile.list` | Returns the array of built-in `ProfileTemplate` objects from `packages/shared`. |
+| `profile.select` | Returns a single `ProfileTemplate` by ID. Params: `{ id: string }`. |
+
+### Skills
+
+| Method | Description |
+|---|---|
+| `skills.list` | Lists available Codex skills, merging workspace-local and external skill roots. Params: `{ cwd?: string, forceReload?: boolean, extraUserRoots?: string[] }`. |
+| `skills.external.list` | Lists skills found in external user roots (e.g. `~/.codex/skills/`). Params: `{ cwd?: string }`. |
+| `skills.archive.install` | Installs a skill from a zip archive. Params: `SkillArchiveInstallParams & { cwd?: string }`. |
+
+### Apps, plugins, and MCP
+
+| Method | Description |
+|---|---|
+| `apps.list` | Lists Codex apps available in the current thread. Params: `{ threadId?: string, forceRefetch?: boolean }`. |
+| `plugins.list` | Lists Codex plugins. Params: `{ cwd?: string }`. |
+| `mcp.servers.list` | Lists registered MCP servers. Params: `{ cursor?, limit?, detail? }`. |
+| `mcp.oauth.login.start` | Starts an OAuth login flow for a named MCP server. Returns `{ authorizationUrl }`. |
+| `mcp.tool.call` | Calls a tool on a specific MCP server. Params: `{ threadId, server, tool, arguments?, _meta? }`. |
+| `mcp.servers.reload` | Reloads the MCP server registry. Returns `{ ok: true }`. |
+
+### Workspace and runtime
+
+| Method | Description |
+|---|---|
+| `workspace.harness.read` | Returns the `WorkspaceHarnessSnapshot` for the current workspace. |
+| `runtime.config.read` | Returns the current `BridgeRuntimeConfig`, including the resolved Codex binary path and workspace root. |
+| `runtime.config.update` | Updates fields of the `BridgeRuntimeConfig`. Params: partial `BridgeRuntimeConfig`. |
+| `runtime.playwright.status` | Returns the `PlaywrightRuntimeCapability` object describing what browser automation modes are available. |
+| `runtime.playwright.install` | Installs the Playwright Chromium runtime. Returns the updated `PlaywrightRuntimeCapability`. |
+
+### Diagnostics
+
+| Method | Description |
+|---|---|
+| `diagnostics.log.write` | Writes a structured entry to the diagnostic log. Params: `{ event?: string, details?: object }`. |
+| `diagnostics.log.folder` | Returns metadata about the diagnostic log folder (path, file count, size). |
+| `diagnostics.log.folder.open` | Opens the diagnostic log folder in the OS file manager. |
+
+## Changing the bridge contract
+
+When you add, rename, or remove a bridge method, you must update all three of these together:
+
+1. **`packages/shared/src/types.ts`** — update or add the relevant interface on `BridgeDependencies`, `BridgeCodexPlane`, `BridgeWorkspacePlane`, `BridgeImagePlane`, `BridgeVoicePlane`, `BridgeRoutePlane`, or `BridgeBrowserActionPlane`.
+2. **`packages/bridge/src/router.ts`** — add or modify the `case` in `BridgeRpcRouter.handle`.
+3. **`packages/extension/src/background/`** — update the background message handler that calls the bridge method.
+
+<Warning>
+Skipping any of these three changes will cause a type error in CI, a runtime error when the extension calls the old method name, or a silent no-op if the router falls through to the `default` case and returns an `Unknown bridge method` error.
+</Warning>
+
+<Tip>
+The `default` case in the router returns `{ id, error: { message: "Unknown bridge method: ..." } }` rather than throwing. If you call a method name that does not exist, the extension will receive an error response — not a crash. This makes it easy to detect typos in method names during development.
+</Tip>

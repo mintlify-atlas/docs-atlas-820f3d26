@@ -1,0 +1,116 @@
+---
+title: "Codex skills — extending Chromex capabilities"
+description: "Learn how to enable, install, and manage Codex skills in Chromex to inject custom instructions and extend what the model can do in your sessions."
+---
+
+Codex skills are Markdown-based instruction files that inject additional context, persona, or behavior guidelines into Codex sessions. When you enable a skill in Chromex, that skill's content is sent alongside your messages so the model follows its instructions throughout the conversation. Skills are entirely opt-in — none are active by default.
+
+## What skills are
+
+Each skill is a `SKILL.md` file stored on your local machine. Chromex reads skills from your Codex user directory:
+
+```text
+~/.codex/skills/
+├── my-skill/
+│   └── SKILL.md
+├── another-skill/
+│   └── SKILL.md
+```
+
+A `SKILL.md` file can include YAML frontmatter for metadata and then free-form Markdown instructions:
+
+```markdown
+---
+name: research-assistant
+description: Guides the model to cite sources and structure findings.
+---
+
+# Research Assistant
+
+Always cite your sources. Present findings as bullet points grouped by theme.
+When summarizing a paper, include: abstract, methodology, findings, and limitations.
+```
+
+Chromex reads the `name`, `description`, and content from each `SKILL.md` when listing available skills in the settings panel.
+
+## Enabling skills
+
+Skills are disabled by default. To enable a skill:
+
+<Steps>
+  <Step title="Open Settings">
+    Click the gear icon in the top-right corner of the Chromex side panel.
+  </Step>
+  <Step title="Go to the Skills section">
+    Chromex lists all discovered skills from your `~/.codex/skills/` directory and any configured external skill roots.
+  </Step>
+  <Step title="Toggle a skill on">
+    Click the toggle next to a skill to enable it. Enabled skills are included as structured inputs in every subsequent message you send until you disable them.
+  </Step>
+</Steps>
+
+<Warning>
+  Skills can significantly change model behavior. A skill that instructs the model to always respond in a specific format, persona, or language will override defaults for every message in that session. Review the contents of a skill before enabling it.
+</Warning>
+
+## Skill archives
+
+You can install skill packages from a ZIP archive directly through the Chromex settings panel. This is useful for distributing a set of skills as a single file.
+
+<Steps>
+  <Step title="Prepare the archive">
+    Create a ZIP file that contains one or more `SKILL.md` files. Each skill must be in its own subdirectory. The archive must be under 12 MB uncompressed and contain no more than 500 files.
+
+    ```text
+    my-skills.zip
+    ├── coding-guide/
+    │   └── SKILL.md
+    └── writing-style/
+        └── SKILL.md
+    ```
+  </Step>
+  <Step title="Install from Settings">
+    Go to **Settings → Skills → Install archive**, select the ZIP file, and confirm. Chromex extracts the archive to a sandboxed directory and immediately lists the new skills.
+  </Step>
+  <Step title="Enable the installed skills">
+    After installation, the skills from the archive appear in your skill list. Toggle them on to activate them.
+  </Step>
+</Steps>
+
+The bridge validates each archive on install — symlinks, path traversal entries, and oversized files are rejected. Installed archives are stored at a content-addressed path under the Chromex skill archive root so reinstalling the same archive is safe.
+
+## External skill roots
+
+If your skills live outside `~/.codex/skills/`, you can configure an additional root directory in **Settings → Workspace → External skills root**. Chromex scans the configured directory for `SKILL.md` files and merges them into the skills list alongside built-in and archive-installed skills.
+
+This is useful when your team shares skills from a shared drive or a checked-in repository:
+
+```text
+/path/to/team-skills/
+├── content-guidelines/
+│   └── SKILL.md
+└── brand-voice/
+    └── SKILL.md
+```
+
+<Note>
+  External skill roots are scanned at startup and when you reload skills from the settings panel. Changes to skill files on disk are not reflected in real time — reload the skills list to pick up edits.
+</Note>
+
+## How skills interact with Codex
+
+When you send a message with skills enabled, Chromex passes the skill identifiers as `CodexStructuredInput` entries of type `"skill"`. Codex receives the skill token and path, reads the `SKILL.md` content, and incorporates its instructions into the session context.
+
+Skills can also link to Codex apps. If an enabled skill name matches an accessible Codex app, Chromex automatically includes an `@mention` for that app so it is available as a structured tool within the session.
+
+Some skills declare a runtime requirement. Skills that reference Playwright, Puppeteer, Selenium, or browser automation are only activated when the Playwright runtime is confirmed available on your machine. If the runtime is not installed, the skill is skipped silently rather than causing an error.
+
+## Bridge methods for skills
+
+The Chromex bridge exposes three methods for skill management:
+
+| Method | Description |
+|--------|-------------|
+| `skills.list` | Returns all skills discovered from `~/.codex/skills/` |
+| `skills.external.list` | Returns skills from the configured external skill root |
+| `skills.archive.install` | Installs a ZIP archive and returns the newly discovered skills |

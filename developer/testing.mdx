@@ -1,0 +1,145 @@
+---
+title: "Testing Chromex: unit tests and smoke tests"
+description: "How to run unit tests, typechecks, browser smoke tests, release audits, and security audits for the Chromex monorepo on Linux, macOS, and Windows."
+---
+
+Chromex uses [Vitest](https://vitest.dev/) for unit tests and a Playwright-based smoke test to verify that the built extension loads in a real Chromium browser. The CI pipeline runs every check on Ubuntu, macOS, and Windows to catch platform-specific issues before they reach a release.
+
+## Unit tests
+
+Run all unit tests across every workspace package:
+
+```bash
+npm run test
+```
+
+The root `test` script builds `@codex-sidepanel/shared` first (so the other packages have compiled types), then runs `vitest run` in each workspace in this order:
+
+1. `@codex-sidepanel/shared`
+2. `@codex-sidepanel/bridge`
+3. `@codex-sidepanel/native-host`
+4. `@codex-sidepanel/extension`
+
+### What the tests cover
+
+| Package | Test focus |
+|---|---|
+| `shared` | Agentic routing normalization, prompt routing logic, read-strategy policy, context budget helpers |
+| `bridge` | RPC router dispatch, bridge handler responses, file attachment conversion |
+| `native-host` | Native Messaging frame encoding and decoding (`encodeNativeMessage`, `NativeMessageStreamDecoder`) |
+| `extension` | Open-source hygiene checks (no credentials, no internal paths in the build output) |
+
+## Typecheck
+
+```bash
+npm run typecheck
+```
+
+Runs `tsc --noEmit` across the bridge, native-host, and extension workspaces after building `shared`. Use this for fast feedback without waiting for esbuild to produce a full bundle.
+
+## Browser smoke test
+
+The smoke test launches a Chromium browser with the built extension loaded and verifies that the side panel opens without JavaScript errors.
+
+```bash
+npm run smoke
+```
+
+If no compatible browser is available, install the Playwright Chromium runtime first:
+
+```bash
+npm run smoke:install-browser
+```
+
+This runs `npx playwright@1.59.1 install chromium` and caches the binary for subsequent runs.
+
+<Note>
+The CI workflow installs the Playwright browser on every run before executing the smoke test. If you are running on a fresh machine or a Docker container, run `npm run smoke:install-browser` before `npm run smoke`.
+</Note>
+
+## Release hygiene audit
+
+The release audit checks the public release artifacts for accidental inclusion of secrets, internal file paths, development-only files, and other hygiene violations:
+
+```bash
+npm run release:audit
+```
+
+Run this before every release tag. It is also part of the CI matrix.
+
+## Git history audit
+
+```bash
+npm run release:audit:history
+```
+
+This scans the git history for accidentally committed secrets, credentials, or internal paths that should never appear in a public repository.
+
+<Warning>
+Run the history audit before open-sourcing a branch or creating a public fork. Once a commit is in a public repository, history rewrites require a force-push and downstream rebases.
+</Warning>
+
+## Security audit
+
+```bash
+npm audit --audit-level=high --omit=dev
+```
+
+Or use the shorthand script defined in the root `package.json`:
+
+```bash
+npm run audit
+```
+
+This checks production dependencies only (dev dependencies are omitted with `--omit=dev`) and fails on `high` or `critical` severity findings.
+
+## Running everything before a release
+
+<Steps>
+  <Step title="Typecheck">
+    ```bash
+    npm run typecheck
+    ```
+  </Step>
+  <Step title="Unit tests">
+    ```bash
+    npm run test
+    ```
+  </Step>
+  <Step title="Build">
+    ```bash
+    npm run build
+    ```
+  </Step>
+  <Step title="Release hygiene audit">
+    ```bash
+    npm run release:audit
+    ```
+  </Step>
+  <Step title="Security audit">
+    ```bash
+    npm run audit
+    ```
+  </Step>
+  <Step title="Smoke test">
+    ```bash
+    npm run smoke
+    ```
+  </Step>
+</Steps>
+
+## CI matrix
+
+The GitHub Actions workflow at `.github/workflows/ci.yml` runs the full suite on three operating systems:
+
+| Runner | Node.js |
+|---|---|
+| `ubuntu-latest` | 24 |
+| `macos-latest` | 24 |
+| `windows-latest` | 24 |
+
+Every CI run executes: install → typecheck → unit tests → build → release hygiene audit → security audit → install Playwright browser → smoke test. The matrix uses `fail-fast: false` so all three OS runs complete even if one fails.
+
+<Tip>
+If a test passes locally but fails in CI on a specific OS, check for path separator differences (`/` vs `\`), case-sensitive filesystem assumptions, or platform-specific process environment behavior in `packages/native-host/src/environment.ts`.
+</Tip>

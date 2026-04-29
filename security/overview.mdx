@@ -1,0 +1,87 @@
+---
+title: "Security architecture and defaults in Chromex"
+description: "How Chromex splits the security boundary across the browser, native host, local bridge, and Codex app-server to keep long-lived secrets out of extension storage."
+---
+
+Chromex is designed around a single core principle: browser-delivered code should never own long-lived secrets. The Chrome extension handles UI and routing; the local native bridge handles authentication handoff, credential storage, and heavy operations. This separation means a compromised or malicious web page cannot reach your API keys or session tokens through the extension.
+
+## Runtime boundary
+
+Every request you make in the Chromex side panel travels through this chain:
+
+```text
+Chrome Extension → Native Messaging Host → Local Bridge → Codex app-server
+```
+
+- **Chrome Extension** (`packages/extension`): renders the side-panel UI, routes user actions, and requests optional permissions at runtime. It does not store raw credentials.
+- **Native Messaging Host** (`packages/native-host`): a thin Chrome Native Messaging relay that bridges the extension to the local bridge over stdio.
+- **Local Bridge** (`packages/bridge`): a local daemon that communicates with the Codex app-server, handles API-key storage, manages generated image output, and writes diagnostic logs.
+- **Codex app-server**: the local Codex runtime that manages ChatGPT auth and model calls.
+
+The boundary means that even if extension storage were read by a malicious page, no OpenAI API key, OAuth token, or ChatGPT session token would be found there.
+
+## Security defaults
+
+The following defaults are enforced in the repository and in every build.
+
+### Credentials and storage
+
+- The extension does not store raw API keys or ChatGPT tokens in `chrome.storage`.
+- Codex OAuth and ChatGPT login are delegated to the local Codex app-server, which persists managed auth on the local machine — not inside the extension.
+- API-key login is an optional local fallback and is never used automatically without user confirmation.
+- The extension may store UI preferences, theme, selected model, onboarding state, and optional connection overrides. It does not store authentication secrets.
+- Conversation history is session-only by default. Persistent local chat history is opt-in through Workspace settings.
+
+### Source control
+
+- No private signing `.pem` file is committed to the repository.
+- No extension signing `.pem` should live in source control.
+- The installer does not import `OPENAI_API_KEY` into any tracked file.
+- Generated native-host manifests and local secret files are excluded from source control.
+- The `.codex/` workspace configuration directory is not tracked in the public repository.
+
+<Note>
+A stable public manifest key is committed to `packages/extension/public/manifest.json` intentionally. This keeps a stable Chrome extension origin for native messaging across unpacked installs. It is public metadata, not a private signing secret.
+</Note>
+
+### Process isolation
+
+- Native-host child processes forward a **reduced environment allowlist** instead of inheriting the full parent shell environment. This prevents unrelated shell secrets from leaking into the native host process.
+- Workspace hook commands also receive a reduced environment allowlist so user-defined hooks do not automatically inherit secrets from the parent environment.
+
+### Native messaging manifests
+
+- Native messaging manifests restrict access to the **exact installed extension origin**. No other extensions can connect to the Chromex native host.
+- Legacy unpacked extension IDs are not permitted in native-host manifests unless the user explicitly passes the migration flag during installation.
+
+### Browser permissions
+
+- `tabs`, `history`, and origin access are declared as optional runtime permissions — Chrome will not grant them until a feature specifically requests them and you approve the prompt.
+- `activeTab` is used for user-initiated page access instead of blanket required host permissions.
+- Required permissions cover only the core side-panel and native messaging runtime.
+
+## Data handling
+
+| Data type | Where it lives | Notes |
+|---|---|---|
+| ChatGPT / OAuth tokens | Codex app-server (local machine) | Never in Chrome extension storage |
+| OpenAI API key | Local bridge secret file (mode `0600`) | Optional fallback only |
+| UI preferences | `chrome.storage` | No authentication material |
+| Chat history | Session memory (default) | Persistent storage is opt-in |
+| Generated images | Local bridge output folder | Removed on user request |
+| Diagnostics logs | Local bridge log folder | Redacted before writing |
+
+<Warning>
+If you fork or modify this repository, review [SECURITY.md](https://github.com/GENEXIS-AI/chromex/blob/main/SECURITY.md) before publishing a build. Confirm that no `.pem` file, native-host manifest, or local secret file is tracked, and run `npm audit --audit-level=high --omit=dev` before any release.
+</Warning>
+
+## Learn more
+
+<CardGroup cols={2}>
+  <Card title="Credentials and API keys" icon="key" href="/security/credentials">
+    How Chromex stores the API key in the local bridge and what is never stored in Chrome.
+  </Card>
+  <Card title="Browser permissions" icon="shield-check" href="/security/browser-permissions">
+    Which Chrome permissions Chromex requests, when, and how to view or revoke them.
+  </Card>
+</CardGroup>

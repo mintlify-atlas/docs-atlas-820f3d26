@@ -1,0 +1,93 @@
+---
+title: "Chrome permission model and what Chromex requests"
+description: "Chromex follows Chrome's minimum-permission principle — required permissions cover only the core runtime; all others are optional and requested only when needed."
+---
+
+Chromex follows Chrome's minimum-permission guidance: request only what a feature actually needs, request it at the moment the feature is used, and never request blanket host access. This page lists every permission Chromex may request and explains which feature triggers each one.
+
+## Required permissions
+
+These permissions are declared in `packages/extension/public/manifest.json` and are granted when you install the extension. They cover only the core runtime — no browsing data is accessible with these alone.
+
+| Permission | Purpose |
+|---|---|
+| `sidePanel` | Displays the Chromex assistant UI in Chrome's side panel |
+| `nativeMessaging` | Connects the extension to the local Chromex bridge |
+| `scripting` | Injects content scripts for user-requested page context and browser helpers |
+| `storage` | Stores local preferences, onboarding state, and lightweight UI state |
+| `contextMenus` | Adds user-triggered right-click actions |
+| `activeTab` | Grants per-tab page access when you explicitly invoke Chromex on a tab |
+| `offscreen` | Maintains an offscreen document for audio processing used by voice workflows |
+
+<Note>
+`activeTab` grants access only to the tab you are actively using when you invoke a feature. It is not a blanket host permission and does not allow background access to any tab.
+</Note>
+
+## Optional runtime permissions
+
+Optional permissions are not granted at install time. Chrome shows a permission prompt the first time a feature needs one. You can approve or deny each request individually.
+
+| Permission | Feature that needs it | What it allows |
+|---|---|---|
+| `tabs` | Cross-tab context queries (the `@` tab picker) | List titles and URLs of your open tabs |
+| `history` | Browser history search | Search visited page titles, URLs, and timestamps |
+| Screen capture | Page screenshots and vision workflows | Capture a screenshot of the visible tab |
+| Microphone | Voice input and live voice mode | Record audio for transcription |
+| Host permissions (per origin) | Page reading, browser actions, infographic and slide generation | Access the specific site you are currently viewing |
+
+### How optional permissions are requested
+
+When you trigger a feature that needs a permission Chromex does not yet have, the extension calls `chrome.permissions.request` with a plain-language rationale. Examples of the rationale text shown in the prompt:
+
+- **Tabs**: "Allow Codex to list your open tabs only when you ask for cross-tab context."
+- **History**: "Allow Codex to search your browser history only when you ask for it."
+- **Page access**: "Allow Codex to read the current page before creating an infographic."
+
+The rationale comes from `packages/extension/src/permission-plans.ts`, which maps each feature type to its required permissions and user-facing explanation.
+
+<Warning>
+If you deny a permission prompt, the feature that triggered it will not complete. You can grant the permission later through **chrome://extensions → Chromex → Permissions**.
+</Warning>
+
+## Site access and restricted pages
+
+Chromex uses `activeTab` for user-initiated page reading rather than declaring broad host permissions. This means:
+
+- Chromex only reads a page when you explicitly ask it to (for example, by clicking **Read page** or sending a message that requires page context).
+- Each host permission is requested for the specific origin you are visiting, not for all sites.
+
+Chromex cannot read or modify restricted browser pages regardless of granted permissions. Restricted URLs include `chrome://`, `chrome-extension://`, `about:`, `devtools:`, `file:`, and the Chrome Web Store (`chromewebstore.google.com`).
+
+## How to view and revoke permissions
+
+<Steps>
+  <Step title="Open Extensions">
+    Navigate to `chrome://extensions` in your browser.
+  </Step>
+  <Step title="Find Chromex">
+    Locate the Chromex card. If you do not see it, make sure **Developer mode** is enabled in the top-right corner.
+  </Step>
+  <Step title="Open Permissions">
+    Click **Details** on the Chromex card, then scroll to the **Permissions** section.
+  </Step>
+  <Step title="Revoke optional permissions">
+    Toggle off any optional permission you no longer want to grant. Required permissions cannot be revoked without uninstalling the extension.
+  </Step>
+</Steps>
+
+<Tip>
+Revoking a permission does not uninstall the extension or reset your settings. The next time you use a feature that needs the revoked permission, Chromex will prompt you again.
+</Tip>
+
+## Permission summary
+
+<CardGroup cols={2}>
+  <Card title="Required at install" icon="lock">
+    `sidePanel`, `nativeMessaging`, `scripting`, `storage`, `contextMenus`, `activeTab`, `offscreen`
+  </Card>
+  <Card title="Optional at runtime" icon="toggle-on">
+    `tabs`, `history`, screen capture, microphone, per-site host permissions
+  </Card>
+</CardGroup>
+
+For the broader security model that governs how permissions fit into the extension architecture, see [Security overview](/security/overview).

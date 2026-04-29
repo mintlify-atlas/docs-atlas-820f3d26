@@ -1,81 +1,82 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
-icon: 'rocket'
+title: "Get started with Chromex in five minutes"
+description: "Install Chromex by downloading the pre-built zip, loading it as an unpacked Chrome extension, and connecting to your local Codex app-server."
 ---
 
-## Get started in three steps
+The fastest way to install Chromex is to download the pre-built zip from the latest GitHub Release, load it in Chrome Developer mode, and follow the onboarding flow to connect to your local Codex app-server. No build tools required.
 
-Get your documentation site running locally and make your first customization.
+<Note>
+  Chromex requires a local Codex app-server running on your machine. The app-server handles authentication and model access. Start it before you open Chromex for the first time.
+</Note>
 
-### Step 1: Set up your local environment
+## Install Chromex
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Open the latest release">
+    Go to [https://github.com/GENEXIS-AI/chromex/releases/latest](https://github.com/GENEXIS-AI/chromex/releases/latest) to find the most recent release.
+  </Step>
+  <Step title="Download the extension zip">
+    Under **Assets**, download `chromex-unpacked-extension.zip`. This is the ready-to-install package — you do not need the source archive.
+  </Step>
+  <Step title="Unzip the file">
+    Extract the zip. You should see a folder named `chromex-extension` containing the unpacked extension files.
+  </Step>
+  <Step title="Open Chrome extensions">
+    In Chrome, navigate to `chrome://extensions`.
+  </Step>
+  <Step title="Enable Developer mode">
+    Toggle **Developer mode** on using the switch in the top-right corner of the extensions page.
+  </Step>
+  <Step title="Load the unpacked extension">
+    Click **Load unpacked** and select the `chromex-extension` folder you extracted in step 3.
 
-### Step 2: Deploy your changes
+    Chromex appears in your extensions list. Chrome may prompt you to pin it to the toolbar.
+  </Step>
+  <Step title="Open Chromex">
+    Click the Chromex icon in the Chrome toolbar, or open the side panel from the browser's **Side panel** button. Chromex opens as a persistent panel on the right side of your browser window.
+  </Step>
+  <Step title="Connect to Codex">
+    Follow the onboarding flow inside Chromex to connect to your local Codex app-server. Sign in through the app-server-backed login flow — your credentials stay on your machine.
+  </Step>
+</Steps>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+## What to do after installing
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+Once Chromex is connected to Codex, you're ready to use it from any tab.
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Open the side panel
 
-### Step 3: Go live
+Click the Chromex toolbar icon to toggle the side panel open or closed. The panel stays open as you navigate between tabs.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+### Pick a profile
+
+Type `/` in the chat input to open the profile picker. Profiles are specialized modes that tune Chromex's behavior for a specific task — YouTube Summarizer, Research Assistant, Slide Maker, and 20 total built-in profiles to choose from.
+
+### Mention a tab
+
+Type `@` in the chat input to open the tab picker. Select one or more open tabs to include their content as context in your message.
+
+### Attach a file
+
+Click the attachment icon in the chat input to upload an image, PDF, Word document, spreadsheet, or plain text file. Chromex reads the file into the conversation.
+
+<Tip>
+  You can combine context sources in a single message — for example, mention two tabs with `@` and attach a PDF, then ask Chromex to compare them.
+</Tip>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Chat and context" icon="messages" href="/features/chat-and-context">
+    Learn how Chromex reads pages, tabs, files, and browser history, and how to control what context it uses.
+  </Card>
+  <Card title="AI profiles" icon="user-gear" href="/features/profiles">
+    Explore the built-in profiles and learn how to create custom ones for your workflow.
+  </Card>
+  <Card title="Voice input" icon="microphone" href="/features/voice">
+    Use voice transcription and live voice mode for hands-free chat.
+  </Card>
+  <Card title="Install from source" icon="code" href="/installation">
+    Build Chromex from source and set up the native host for developer workflows.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

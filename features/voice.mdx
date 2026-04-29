@@ -1,0 +1,86 @@
+---
+title: "Voice input and live voice sessions in Chromex"
+description: "Chromex supports push-to-talk voice transcription and real-time two-way live voice sessions with barge-in, captions, automatic reconnect, and 19 voice options."
+---
+
+Chromex provides two distinct voice modes: voice transcription for quick dictation into the composer, and live voice sessions for real-time two-way audio conversations with the model. Both modes use your microphone, so Chrome will prompt for permission the first time you use either one.
+
+## Microphone permission
+
+Chrome manages microphone access at the browser level. The first time you activate any voice feature, Chrome displays a permission prompt in the address bar asking whether to allow the Chromex side panel to use your microphone.
+
+<Steps>
+  <Step title="Click the voice button">
+    Select the microphone icon in the Chromex composer to start voice input, or open **Voice session** from the side panel toolbar to start a live session.
+  </Step>
+  <Step title="Grant microphone access">
+    Chrome displays a permission prompt. Click **Allow**. The permission applies to the Chromex side panel origin and persists across sessions.
+  </Step>
+  <Step title="Start speaking">
+    Voice transcription begins recording immediately. Live voice sessions connect to the model and begin the real-time audio stream.
+  </Step>
+</Steps>
+
+<Note>
+If you denied microphone access, open `chrome://settings/content/microphone`, find the Chromex side panel origin, and change it from **Block** to **Allow**.
+</Note>
+
+## Voice transcription
+
+Voice transcription is a push-to-talk mode. Press and hold the microphone button in the composer, speak, then release. Chromex records the audio, sends it for transcription, and inserts the transcribed text into the composer input field. You can edit the text before sending.
+
+<CardGroup cols={2}>
+  <Card title="How it works" icon="microphone">
+    Press the microphone button to record. Release to stop. The transcribed text appears in the composer where you can review, edit, and send it.
+  </Card>
+  <Card title="Typical use" icon="pen">
+    Dictate a long question or instruction without typing. Useful for detailed prompts, code descriptions, or anything faster to speak than type.
+  </Card>
+</CardGroup>
+
+## Live voice session
+
+A live voice session opens a real-time, two-way audio channel between you and the model. You speak and the model responds with synthesized audio. Live captions appear in the chat panel so you can follow the conversation visually.
+
+The session uses WebRTC or WebSocket transport depending on what the bridge daemon negotiates with the Codex app-server.
+
+### Available voices
+
+You can choose from 19 voice options for live sessions in **Settings > Voice**:
+
+`Alloy`, `Arbor`, `Ash`, `Ballad`, `Breeze`, `Cedar`, `Coral`, `Cove`, `Echo`, `Ember`, `Juniper`, `Maple`, `Marin`, `Sage`, `Shimmer`, `Sol`, `Spruce`, `Vale`, `Verse`
+
+### Barge-in
+
+You can interrupt the model mid-response by speaking while it is still talking. Chromex detects your audio and stops the current model output so you can redirect the conversation without waiting for the response to finish.
+
+### Automatic reconnect
+
+If the voice session connection drops — for example, due to a brief network interruption — Chromex automatically attempts to reconnect. You will see a reconnecting indicator in the side panel. If reconnection fails, you can start a new session manually.
+
+### Language
+
+The model responds in the UI language selected in **Settings > General > App UI language** by default. You can ask the model to respond in a different language mid-session and it will switch for that turn.
+
+<Tip>
+Live voice sessions consume model capacity continuously while active. Close the session when you are done to avoid unnecessary usage.
+</Tip>
+
+## Voice and browser control
+
+Voice input can trigger the same agentic routing as typed messages. If you dictate a message that the route planner resolves as a browser-control request — for example, "click the submit button" — Chromex will proceed with browser automation just as if you had typed the message.
+
+<Warning>
+Browser control actions triggered by voice follow the same confirmation rules as typed requests. Chromex may ask for confirmation before performing actions that modify page state.
+</Warning>
+
+## Comparison of voice modes
+
+| | Voice transcription | Live voice session |
+|---|---|---|
+| Input | Push-to-talk audio | Continuous audio |
+| Output | Text inserted into composer | Synthesized audio + live captions |
+| Barge-in | Not applicable | Supported |
+| Reconnect | Not applicable | Automatic |
+| Use case | Dictating messages | Hands-free conversation |
+| Transport | Transcription API | WebRTC / WebSocket |

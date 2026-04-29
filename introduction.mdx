@@ -1,0 +1,71 @@
+---
+title: "Chromex: AI assistant for Chrome side panel"
+description: "Learn what Chromex does, how the Chrome–Codex runtime boundary works, and what you need before you start using it."
+---
+
+Chromex is a Chrome MV3 side-panel extension that connects your browser to Codex through a local native bridge. It lets you chat with web pages, open tabs, uploaded files, voice input, images, and browser workflows — all from a persistent side panel that stays open while you browse. Because authentication flows through the local Codex app-server instead of extension storage, your API keys and session tokens never leave your machine.
+
+## What Chromex does
+
+Chromex routes your requests to the right context automatically:
+
+- **Chat with pages and tabs** — Ask questions about the current page, compare content across multiple open tabs, summarize YouTube videos and arXiv papers, or pull in browser history when you need it.
+- **Files and attachments** — Upload images, PDFs, Word documents, spreadsheets (CSV, TSV, XLSX, XLSM), and plain text. Chromex reads them into your conversation without leaving the browser.
+- **Voice input** — Transcribe speech, use live voice mode, or speak over an ongoing response with barge-in support.
+- **Image workflows** — Edit or generate images through Codex image workflows, with local output handling and non-destructive editing for page images or screen captures.
+- **Browser automation** — Run browser-control workflows via Chrome content scripts, with visible in-page activity indicators showing what Chromex is doing.
+- **AI profiles** — Switch between 20 built-in specialized modes with the `/` picker: YouTube Summarizer, Research Assistant, Slide Maker, and more.
+
+## The runtime boundary
+
+Chromex uses a four-layer architecture to keep credentials out of extension storage:
+
+```text
+Chrome Extension -> Native Messaging Host -> Local Bridge -> Codex app-server
+```
+
+Each layer has a specific role:
+
+- **Chrome Extension** (`packages/extension`) — The MV3 side panel, content scripts, and UI. Handles tab context, file attachments, and user input.
+- **Native Messaging Host** (`packages/native-host`) — A Chrome Native Messaging relay that connects the extension to the local bridge daemon.
+- **Local Bridge** (`packages/bridge`) — A local daemon that manages multimodal workflows, handles image output, and talks to the Codex app-server.
+- **Codex app-server** — Runs on your machine and owns authentication, model access, and OAuth flows.
+
+This boundary means the extension itself holds no credentials. The Codex app-server handles login, and the bridge relays requests between Chrome and your local models.
+
+## Before you start
+
+You need a local Codex app-server running on your machine before Chromex can do anything useful. The app-server provides authentication and model access — Chromex cannot connect to models on its own.
+
+<Note>
+  If your Codex app-server is not running, the Chromex onboarding screen will show a connection error. Start the app-server first, then open Chromex.
+</Note>
+
+## Key capabilities
+
+<CardGroup cols={2}>
+  <Card title="Quick install" icon="rocket" href="/quickstart">
+    Install Chromex in five minutes by downloading the pre-built zip and loading it as an unpacked extension.
+  </Card>
+  <Card title="Chat and context" icon="messages" href="/features/chat-and-context">
+    Chat with the current page, open tabs, uploaded files, and browser history in a single conversation.
+  </Card>
+  <Card title="AI profiles" icon="user-gear" href="/features/profiles">
+    Switch between built-in profiles for YouTube, research, writing, coding, and more using the `/` picker.
+  </Card>
+  <Card title="Voice input" icon="microphone" href="/features/voice">
+    Transcribe speech, use live voice mode, and interrupt responses with barge-in support.
+  </Card>
+  <Card title="Image workflows" icon="image" href="/features/image-workflows">
+    Edit and generate images through Codex workflows with non-destructive local output handling.
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/developer/architecture">
+    Explore the multi-package structure and the Chrome–Codex bridge protocol in depth.
+  </Card>
+</CardGroup>
+
+## Language support
+
+Chromex follows your browser language automatically. You can also choose a specific language in **Settings > General > App UI language**.
+
+The extension ships `_locales` entries for English, Korean, Japanese, Chinese (Simplified), Arabic, French, German, Spanish, Portuguese, Hindi, Vietnamese, Thai, Turkish, Ukrainian, and 40+ other Chrome-compatible locales — 55 total. Model responses follow the selected UI language unless you ask for a different one.

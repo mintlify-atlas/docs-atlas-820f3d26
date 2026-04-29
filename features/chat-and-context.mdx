@@ -1,0 +1,111 @@
+---
+title: "Chat with pages, tabs, files, and browser history"
+description: "Chromex pulls context from the current page, open tabs, uploaded files, selected text, screenshots, and browser history — all in a single conversation turn."
+---
+
+Chromex reads from multiple context sources so you can ask questions about anything in your browser without copying and pasting. Send a message and Chromex automatically determines what context to include — or you can manually attach sources using the `@` and file attachment controls in the composer.
+
+## Context sources
+
+Chromex can draw context from six sources in a single turn:
+
+| Source | How to attach | What Chromex reads |
+|---|---|---|
+| Current page | Automatic (profile-dependent) or manual | Page DOM text, visible images, or a site adapter payload |
+| Open tabs | `@` picker in the composer | Title, URL, and page content from selected tabs |
+| Browser history | Automatic when the query targets past browsing | Visited URLs and titles matching a search query |
+| Selected text | Highlight text on the page before asking | The highlighted selection only |
+| Images | Page screenshots or visible images | Visible screen capture or page image |
+| Uploaded files | Attachment icon in the composer | File contents (see supported formats below) |
+
+## The `@` tab picker
+
+Type `@` in the composer to open the tab picker. It lists your currently open tabs by title and URL. Select one or more tabs to attach their content to the next message. Chromex reads each selected tab's page content and includes it alongside your message.
+
+<Tip>
+You can mention multiple tabs in a single message. Chromex deduplicates sources so the same tab is never read twice even if it appears in multiple selections.
+</Tip>
+
+## File attachments
+
+Click the attachment icon in the composer to upload a file. Chromex reads the file contents and includes them as context.
+
+<AccordionGroup>
+  <Accordion title="Supported attachment formats">
+    | Format | Extensions | Notes |
+    |---|---|---|
+    | Images | `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif` | Sent to the model as vision input |
+    | Plain text | `.txt`, `.md`, `.csv`, `.tsv` | Read as UTF-8 text |
+    | PDF | `.pdf` | Text extracted from the PDF |
+    | Word documents | `.docx` | Text and basic structure extracted |
+    | Excel spreadsheets | `.xlsx`, `.xlsm` | Sheet data extracted as structured text |
+    | CSV / TSV | `.csv`, `.tsv` | Tabular data read as text |
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+Binary files that do not match a supported format are accepted but passed as raw content. Results depend on what the model can infer from the binary data.
+</Note>
+
+## Context routing
+
+When you send a message, Chromex runs an agentic route planner that decides which context sources to include and how to read each one. You do not need to manually manage context for most queries.
+
+The route planner resolves:
+
+- **Task type** — general answer, document analysis, visual analysis, image editing, image generation, or comparison
+- **Context requests** — which sources to fetch (current page, open tabs, browser history, selection, image)
+- **Read strategy** — how to read the current page (see below)
+- **Profile rerouting** — whether a different built-in profile better fits the query
+- **Model selection** — whether a vision-capable model is needed
+
+The planner uses your message, the active profile, explicitly attached sources, and available context to build a route plan before any model call is made.
+
+## Page reading modes
+
+Chromex reads the current page using one of four strategies. The route planner selects the best strategy automatically, or you can override it in **Settings > Configuration > Read strategy**.
+
+<CardGroup cols={2}>
+  <Card title="DOM" icon="code">
+    Extracts the page's text content from the DOM. Fast and accurate for text-heavy pages like articles, documentation, and posts.
+  </Card>
+  <Card title="Vision" icon="eye">
+    Takes a screenshot of the visible page and sends it to the model as an image. Best for image-heavy or canvas-based pages with little text.
+  </Card>
+  <Card title="Hybrid" icon="layers">
+    Combines DOM text with a screenshot. Used automatically for pages with both significant text and visual elements, such as dashboards, video players, and interactive UIs.
+  </Card>
+  <Card title="Adapter" icon="plug">
+    Runs a site-specific adapter that extracts structured data unavailable from the raw DOM. Used automatically for supported sites.
+  </Card>
+</CardGroup>
+
+For full details on how strategies are selected and how to override them, see [Read strategies](/configuration/read-strategies).
+
+## Site-aware adapters
+
+Chromex ships built-in adapters for sites where the raw DOM does not capture the most useful context:
+
+| Site category | What the adapter extracts |
+|---|---|
+| YouTube | Full transcript, chapter markers, current playback timestamp, video title and description |
+| Gmail / Naver Mail | Thread subject, sender, recipients, and message body |
+| arXiv papers | Abstract, section structure, and paper metadata |
+| News articles | Headline, byline, publication date, and article body |
+| Research pages | Structured content and references where available |
+| Shopping pages | Product name, price, specifications, and reviews |
+| Travel pages | Destinations, dates, pricing, and availability summaries |
+
+When you open a supported site and start a conversation, Chromex activates the matching adapter automatically.
+
+## Markdown rendering
+
+Chromex renders model responses as full Markdown: headings, bold, italic, inline code, fenced code blocks with language-aware syntax highlighting, tables, and links. Code blocks include a copy button. Long responses are scrollable in the side panel without losing the composer.
+
+## Conversation history
+
+By default, conversation history is session-only — it is cleared when you close the side panel or reload the extension. To keep history across sessions, enable **Persistent history** in **Settings > Workspace**. Persistent history is stored locally by the bridge daemon and is never sent to remote servers.
+
+<Warning>
+Persistent history stores page content, file contents, and screenshots from past conversations on your local machine. Review what context you are capturing before enabling this option.
+</Warning>

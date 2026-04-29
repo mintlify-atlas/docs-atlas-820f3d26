@@ -1,0 +1,128 @@
+---
+title: "Diagnostics and logs for debugging Chromex"
+description: "How to open the Chromex bridge diagnostics log, use the bridge RPC methods for log access, inspect extension console output, and report bugs with useful detail."
+---
+
+Chromex includes a diagnostics log system built into the local bridge. The bridge records RPC requests and responses, connection events, and errors to a log file on your machine. This page explains how to find and open those logs, how to inspect the extension's own console output, and what to include when reporting a bug.
+
+## Bridge diagnostics log
+
+The bridge writes all diagnostic events to a log file in a per-user directory on your machine. The log file is named `bridge.log`.
+
+### Default log locations
+
+| Platform | Default log folder |
+|---|---|
+| macOS | `~/Library/Application Support/CodexSidepanel/Logs/` |
+| Linux | `~/.local/share/codex-sidepanel/Logs/` |
+| Windows | `%LOCALAPPDATA%\CodexSidepanel\Logs\` |
+
+<Note>
+Sensitive values are automatically redacted before any event is written to the log. Keys matching patterns such as `api_key`, `authorization`, `token`, `secret`, `password`, and `cookie` are replaced with `[redacted]`. OpenAI key patterns (`sk-...`) and base64 image data are stripped from log entries.
+</Note>
+
+### Open the log folder through Settings
+
+<Steps>
+  <Step title="Open Chromex settings">
+    Click the settings icon in the Chromex side panel.
+  </Step>
+  <Step title="Navigate to Diagnostics">
+    Select **Settings → Diagnostics** (or the equivalent diagnostics entry in your version).
+  </Step>
+  <Step title="Open log folder">
+    Click **Open log folder**. This triggers the bridge RPC method `diagnostics.log.folder.open`, which opens the folder in your system file explorer (Finder on macOS, Explorer on Windows, or the default file manager on Linux).
+  </Step>
+</Steps>
+
+## Bridge RPC methods for diagnostics
+
+The bridge exposes three RPC methods for interacting with the diagnostics log system. These can also be called programmatically if you are building tooling around Chromex.
+
+| Method | Description |
+|---|---|
+| `diagnostics.log.write` | Write a custom event entry to the log. Accepts an event name string and an optional details object. The details object is redacted before writing. |
+| `diagnostics.log.folder` | Returns a snapshot of the log folder: the root directory path, the path to the current `bridge.log`, and an array of all `.log` files present. |
+| `diagnostics.log.folder.open` | Opens the log folder in the system file explorer. Only the registered diagnostics root directory can be opened; requests for arbitrary folders are rejected. |
+
+## What diagnostics capture
+
+Each log entry is a JSON line written to `bridge.log` with the following structure:
+
+```json
+{
+  "timestamp": "2026-04-29T10:23:01.456Z",
+  "event": "rpc.request",
+  "details": {
+    "method": "model.catalog.list",
+    "requestId": "abc123"
+  }
+}
+```
+
+The diagnostics system records:
+
+- RPC request and response events (method name, request ID, timing)
+- Native bridge connection events (connected, disconnected, reconnect attempts)
+- Errors from bridge operations
+- Custom events written through `diagnostics.log.write`
+
+## Verifying the native bridge connection
+
+The onboarding system status screen shows the current connection state without requiring you to read log files directly.
+
+<Steps>
+  <Step title="Open Chromex">
+    Click the Chromex toolbar icon to open the side panel.
+  </Step>
+  <Step title="Go to system status">
+    If onboarding has not been completed, the status screen is shown automatically. Otherwise, access it through **Settings → System status** or the connection indicator in the side panel header.
+  </Step>
+  <Step title="Read the status indicators">
+    Two indicators appear:
+
+    - **Native host**: shows `Connected`, `Setup needed`, or `Reconnect`. If `Setup needed`, run `npm run build` and then `node scripts/install-native-host.mjs`.
+    - **Codex binary**: shows `Connected`, `Automatic`, `Not detected`, or `Pending`. `Pending` means the native host must connect first. `Not detected` means the Codex binary was not found on the system PATH or configured location.
+  </Step>
+</Steps>
+
+## Extension console logs
+
+The Chromex side panel runs as a separate extension page. To open Chrome DevTools for it:
+
+<Steps>
+  <Step title="Open the side panel">
+    Make sure Chromex is visible in the Chrome side panel.
+  </Step>
+  <Step title="Right-click inside the side panel">
+    Right-click anywhere in the Chromex UI and select **Inspect**. This opens a DevTools window scoped to the side-panel page.
+  </Step>
+  <Step title="Read the Console tab">
+    Switch to the **Console** tab. Extension errors, RPC messages logged by the extension, and permission errors appear here.
+  </Step>
+</Steps>
+
+<Tip>
+For background service worker logs, open `chrome://extensions`, click **Service Worker** next to the Chromex card, and check the DevTools console that opens.
+</Tip>
+
+## Common error patterns
+
+| Error message pattern | Meaning | Resolution |
+|---|---|---|
+| `specified native messaging host not found` | Native host is not installed | Run `node scripts/install-native-host.mjs` |
+| `access to the specified native messaging host is forbidden` | Native host is registered to a different extension origin | Rebuild and reinstall: `npm run build && node scripts/install-native-host.mjs` |
+| `native host disconnected` | The bridge process exited unexpectedly | Reload the extension in `chrome://extensions` |
+| `native host has exited` | Same as above | Reload the extension in `chrome://extensions` |
+| `codexBinSource: "missing"` | Codex binary not found on PATH or configured path | Install Codex CLI and confirm it is on your PATH |
+
+## When to report a bug
+
+If you have worked through [common issues](/troubleshooting/common-issues) and the problem persists, collect the following before filing a report:
+
+1. The contents of `bridge.log` from the diagnostics log folder.
+2. Any errors shown in the extension console (side panel DevTools → Console).
+3. The Chromex version (visible in **Settings → About** or in `packages/extension/public/manifest.json`).
+4. Your operating system and Chrome version.
+
+Report issues at [https://github.com/GENEXIS-AI/chromex/issues](https://github.com/GENEXIS-AI/chromex/issues).

@@ -1,0 +1,110 @@
+{
+  "projectType": "frontend",
+  "projectName": "Chromex",
+  "projectDescription": "A Chrome MV3 side-panel assistant that connects the browser to Codex through a local native bridge, enabling page context, tab management, voice input, image editing, and browser automation workflows.",
+  "theme": "palm",
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/chat-and-context",
+              "features/profiles",
+              "features/voice",
+              "features/image-workflows"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/settings",
+              "configuration/read-strategies",
+              "configuration/skills",
+              "configuration/permissions"
+            ]
+          },
+          {
+            "group": "Security & Privacy",
+            "pages": [
+              "security/overview",
+              "security/credentials",
+              "security/browser-permissions"
+            ]
+          },
+          {
+            "group": "Troubleshooting",
+            "pages": [
+              "troubleshooting/common-issues",
+              "troubleshooting/diagnostics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Developer Guide",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "developer/architecture",
+              "developer/packages",
+              "developer/bridge-protocol"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "developer/build",
+              "developer/testing",
+              "developer/release"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Chrome MV3 side-panel with chat-first UX connected to Codex via native messaging",
+    "Automatic context routing for current page, selected tabs, browser history, and files",
+    "20+ built-in AI profiles (YouTube Summarizer, Research Assistant, Fact Checker, Slide Maker, etc.)",
+    "Voice input with live transcription and real-time voice session support",
+    "Non-destructive image editing and generation via Codex image workflows",
+    "Site-aware adapters for YouTube, Gmail, arXiv, news, and more",
+    "Browser automation through DOM control scripts and Playwright",
+    "Multi-language UI with 15+ Chrome locale entries",
+    "@-picker for tab mentions and /-picker for profile selection",
+    "Attachment support for PDF, DOCX, CSV, XLSX, XLSM, and image files"
+  ],
+  "publicApiSurface": [
+    "BridgeRpcRouter.handle(request, options) — routes all bridge RPC methods",
+    "account.status / account.login.start / account.logout — authentication methods",
+    "model.list — list available Codex models",
+    "prompt.send — send a prompt with context and file attachments",
+    "route.plan — agentic route planning for context and task selection",
+    "browser.action.plan — browser automation planning",
+    "image.generate.start / image.edit.start / image.edit.preview — image workflows",
+    "voice.session.start / voice.session.append_audio / voice.session.stop — voice session methods",
+    "profile.list / profile.select — built-in AI profile management",
+    "skills.list / skills.archive.install — Codex skills management",
+    "mcp.servers.list / mcp.tool.call — MCP server integration",
+    "normalizeAgenticRoutePlan(rawPlan, input) — normalize agentic route plan from LLM output",
+    "createFallbackAgenticRoutePlan(input, reason) — create a fallback route plan",
+    "listProfileTemplates() — list all built-in profile templates",
+    "getProfileTemplate(id) — get a specific profile template by ID",
+    "determineReadStrategy(input) — determine DOM/vision/hybrid/adapter read strategy"
+  ]
+}

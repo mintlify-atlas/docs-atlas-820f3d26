@@ -1,133 +1,67 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
-icon: 'star'
+title: "Chromex: AI side-panel assistant for Chrome"
+description: "Chromex connects Chrome to Codex through a local native bridge, bringing AI-powered chat, page context, voice, and image workflows into your browser side panel."
 ---
 
-## Setting up
+Chromex is a Chrome MV3 side-panel extension that puts Codex directly in your browser. Ask questions about the current page, summarize YouTube videos, edit images, use voice input, and automate browser tasks — all without leaving your workflow. A local native bridge keeps your credentials off the extension and routes requests securely to the Codex app-server running on your machine.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Install" icon="rocket" href="/quickstart">
+    Install Chromex in five minutes — download, unzip, and load as an unpacked extension.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Full Installation Guide" icon="wrench" href="/installation">
+    Developer source install, native host setup, and build-from-source instructions.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core Features" icon="sparkles" href="/features/chat-and-context">
+    Chat with pages, tabs, files, and browser history using intelligent context routing.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="AI Profiles" icon="user-gear" href="/features/profiles">
+    20 built-in profiles: YouTube Summarizer, Research Assistant, Slide Maker, and more.
   </Card>
-</Columns>
+  <Card title="Voice Input" icon="microphone" href="/features/voice">
+    Voice transcription, live voice mode, and barge-in support for hands-free chat.
+  </Card>
+  <Card title="Image Workflows" icon="image" href="/features/image-workflows">
+    Non-destructive image editing and generation through Codex image workflows.
+  </Card>
+</CardGroup>
 
-## Create beautiful pages
+## How Chromex works
 
-Everything you need to create world-class documentation.
+Chromex splits responsibilities across four layers so your credentials never touch extension storage:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+<Steps>
+  <Step title="Install the extension">
+    Load the unpacked extension in Chrome Developer mode. Chromex adds a persistent side panel to every browser window.
+  </Step>
+  <Step title="Start the local bridge">
+    The native messaging host connects Chrome to a local bridge daemon that talks to the Codex app-server running on your machine.
+  </Step>
+  <Step title="Sign in through Codex">
+    Authentication flows through the local Codex app-server. Your API keys and tokens stay on your machine — never in Chrome extension storage.
+  </Step>
+  <Step title="Start chatting">
+    Open the side panel, pick a profile with `/`, mention tabs with `@`, attach files, and ask anything about what's on your screen.
+  </Step>
+</Steps>
 
-## Make your content agent ready
+## Key capabilities
 
-Make your docs work for humans and AI agents alike.
+<CardGroup cols={2}>
+  <Card title="Page & tab context" icon="browser" href="/features/chat-and-context">
+    Read the current page, selected tabs, browser history, or uploaded files in a single conversation turn.
+  </Card>
+  <Card title="Site-aware adapters" icon="plug" href="/configuration/read-strategies">
+    YouTube transcripts, Gmail threads, arXiv papers, and more — specialized adapters extract richer context automatically.
+  </Card>
+  <Card title="Browser automation" icon="robot" href="/developer/bridge-protocol">
+    Run browser-control workflows via DOM scripts or Playwright — with visible in-page activity indicators.
+  </Card>
+  <Card title="Developer guide" icon="code" href="/developer/architecture">
+    Explore the multi-package architecture, bridge protocol, and how to build or release Chromex from source.
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Prompt component"
-    icon="robot"
-    href="/agent-ready/prompt"
-  >
-    Embed shareable AI prompts readers can copy or open in Cursor.
-  </Card>
-  <Card
-    title="Visibility"
-    icon="eye"
-    href="/agent-ready/visibility"
-  >
-    Show different content to humans and agents reading your docs.
-  </Card>
-  <Card
-    title="Contextual menu"
-    icon="bolt"
-    href="/agent-ready/contextual"
-  >
-    Give readers one-click access to Claude, ChatGPT, Cursor, and more.
-  </Card>
-  <Card
-    title="AI coding tools"
-    icon="wand-magic-sparkles"
-    href="/ai-tools/claude-code"
-  >
-    Set up Claude Code, Cursor, or Windsurf with Mintlify's skill.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Note>
+  Chromex requires a local Codex app-server for authentication and model access. See the [installation guide](/installation) for full setup instructions.
+</Note>

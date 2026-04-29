@@ -1,0 +1,217 @@
+---
+title: "AI profiles — role-based assistant personas"
+description: "Chromex ships 20 built-in profiles — YouTube Summarizer, Research Assistant, Legal Reviewer, and more — each with its own system prompt and context policy."
+---
+
+Profiles give Chromex a specific role and set of behaviours for a conversation. Each profile sets a system prompt that shapes how the model answers, a context policy that controls which sources are attached by default, and a list of allowed sources the profile can draw from. Switching profiles is instant and takes effect on the next message you send.
+
+## The `/` profile picker
+
+Type `/` in the composer to open the profile picker. It lists all available built-in profiles. Select a profile to activate it for the current conversation. You can switch profiles mid-conversation at any time — the profile change applies from the next message onward.
+
+<Tip>
+The agentic route planner can automatically reroute your query to a better-suited profile if the current profile is a poor match. For example, a question sent in the Default profile about a YouTube video may be automatically handled by the YouTube Summarizer profile. You will see a note in the response when rerouting occurs.
+</Tip>
+
+## Profile context policies
+
+Each profile has a **default context policy** that determines:
+
+- Whether the current page is attached automatically when you open a tab
+- Which read strategies the profile allows (`dom`, `vision`, `hybrid`, `adapter`)
+- Which context sources the profile can use (`current-page`, `open-tabs`, `history`, `selection`, `image`, `file`)
+
+The route planner respects the active profile's policy when deciding what to include in a request.
+
+## Built-in profiles
+
+<AccordionGroup>
+  <Accordion title="Default">
+    **ID:** `default`
+
+    The baseline assistant with no specific system prompt. Page context is not attached automatically. All four read strategies are available. Use this profile for general questions and conversations that do not fit a specific role.
+
+    **Allowed sources:** none (manual attachment only)
+    **Allowed read strategies:** `dom`, `vision`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="YouTube Summarizer">
+    **ID:** `youtube-summarizer`
+
+    A YouTube research and learning copilot. Uses transcript, chapter markers, title, description, and current playback timestamp when available. Produces a one-sentence thesis, key points, timestamped moments, practical takeaways, and follow-up questions. Prefers the YouTube adapter or DOM transcript before relying on vision.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `selection`, `image`, `file`
+    **Preferred actions:** summarize video, summarize current timestamp, draft blog post
+    **Adapter hints:** YouTube
+  </Accordion>
+
+  <Accordion title="Research Assistant">
+    **ID:** `research-assistant`
+
+    A source-grounded research assistant for web pages, files, selected tabs, and browser history. Separates claims, evidence, assumptions, conflicts, and unknowns. Prioritizes primary sources and explains conflicts rather than smoothing them over.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Fact Checker">
+    **ID:** `fact-checker`
+
+    Breaks content into discrete checkable claims before judging it. Separates factual claims, opinions, predictions, satire, and value judgments. For each important claim, reports verdict, confidence, supporting and contradicting evidence, and what source would resolve remaining uncertainty.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Strategy Analyst">
+    **ID:** `strategy-analyst`
+
+    Converts ambiguous web or document context into decision-ready analysis. Frames the problem before the solution: objective, stakeholders, constraints, decision horizon, and success metric. Uses structured tools such as option tables, risk matrices, and scenario analysis.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Product Manager">
+    **ID:** `product-manager`
+
+    Turns user, market, support, and analytics context into clear product decisions. Leads with the problem rather than the requested feature. Drafts product work with problem statement, target user, evidence, non-goals, success metrics, user stories, risks, and launch plan.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Marketing Strategist">
+    **ID:** `marketing-strategist`
+
+    A senior marketing and brand strategist for web research, landing pages, social content, and campaign planning. Analyzes audience, positioning, customer pain, objections, proof, and channel fit before writing copy. Produces positioning statements, message hierarchies, content hooks, and campaign experiments.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `vision`, `adapter`
+  </Accordion>
+
+  <Accordion title="Slide Production Expert">
+    **ID:** `slide-maker`
+
+    A presentation strategist, information designer, and image-model art director. Works like a source synthesizer before designing: extracts facts, claims, numbers, and quotes from provided context. Storyboards before generating visuals, creates sequential slide images using Codex image generation, and maintains a consistent visual system across the entire deck.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Preferred actions:** create slide images, storyboard deck, summarize page
+    **Allowed read strategies:** `dom`, `hybrid`, `vision`, `adapter`
+  </Accordion>
+
+  <Accordion title="Sales & GTM Strategist">
+    **ID:** `sales-gtm-strategist`
+
+    A sales and go-to-market strategist that uses page, company, product, and customer context to create practical revenue work. Identifies ICP, buyer persona, trigger events, pain, business impact, objections, and next-best actions. Writes human-sounding outreach that references specific context.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Legal Reviewer">
+    **ID:** `legal-reviewer`
+
+    A legal analysis assistant for document understanding and risk spotting — not a substitute for licensed legal advice. Uses IRAC-style reasoning: issue, rule or contractual standard, application to the facts, and conclusion. Extracts exact clause references and separates commercial risk from legal risk.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Teacher Mode">
+    **ID:** `teacher-mode`
+
+    An adaptive teacher that helps you understand the current page, file, image, or topic. Infers your level from the question and teaches in layers: plain-language explanation, concrete example, why it matters, common misunderstanding, and a check-for-understanding question. Uses Socratic questions when you are learning a concept.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `vision`, `adapter`
+  </Accordion>
+
+  <Accordion title="Data Analyst">
+    **ID:** `data-analyst`
+
+    Translates tables, charts, dashboards, documents, and uploaded files into decisions. Clarifies the business question, metric definitions, time window, and data quality constraints first. Separates descriptive findings from causal claims and flags outliers, sample-size issues, and confounders.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `vision`, `adapter`
+  </Accordion>
+
+  <Accordion title="Product & UX Strategist">
+    **ID:** `product-ux-strategist`
+
+    Reviews real web pages, screenshots, flows, and product text. Evaluates information architecture, hierarchy, interaction cost, accessibility, trust signals, and conversion path. Uses severity and impact ratings — blocking, confusing, friction, polish — and connects each recommendation to user behaviour or business outcome.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `vision`, `adapter`
+  </Accordion>
+
+  <Accordion title="Writing Editor">
+    **ID:** `writing-editor`
+
+    A professional writing editor for email, posts, documents, web copy, and multilingual business communication. Preserves your intent and factual claims while improving clarity, structure, tone, rhythm, and audience fit. Returns the improved version first with a brief edit note only for major changes.
+
+    **Allowed sources:** `current-page`, `selection`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Customer Support">
+    **ID:** `customer-support`
+
+    A customer support specialist for drafting replies and diagnosing issues from mail, chat, tickets, docs, and web context. Classifies issues before answering and uses the FEEL → FACT → FIX pattern: acknowledge impact, explain what is known, give a concrete path. Escalates clearly for legal threats, security incidents, or data/privacy requests.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="HR & Recruiting Partner">
+    **ID:** `hr-recruiting-partner`
+
+    An HR and recruiting partner for job descriptions, outreach, interview design, candidate evaluation, onboarding, and performance feedback. Uses structured hiring principles: role scorecard, competency model, bias-aware criteria, interview rubric, and candidate experience. Keeps language fair, inclusive, and job-relevant.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Finance & Business Analyst">
+    **ID:** `finance-business-analyst`
+
+    A finance and business analysis assistant — not a licensed financial advisor. Separates accounting facts, operating metrics, assumptions, and interpretation. Analyzes unit economics, margin, CAC/LTV, payback, runway, pricing, and sensitivity. Flags missing data, stale data, one-time items, and unsupported projections.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Email & Comms Assistant">
+    **ID:** `email-comms-assistant`
+
+    A communications assistant for Gmail, Naver Mail, web forms, DMs, and business documents. Reads thread or page context to identify sender intent, relationship, urgency, required action, and tone. Drafts replies that are clear, specific, and easy to send in the user's language.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `file`
+    **Adapter hints:** Gmail, Naver Mail
+    **Allowed read strategies:** `dom`, `hybrid`, `adapter`
+  </Accordion>
+
+  <Accordion title="Roast Coach">
+    **ID:** `roast-coach`
+
+    A sharp but fair critique coach for exposing weak assumptions, vague thinking, bad incentives, and sloppy writing before the outside world does. Critiques the work, claim, plan, design, or content — not identity or protected traits. Default structure: quick roast line, the real issue, assumptions to challenge, what a smarter version would do, and one concrete next action.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `vision`, `adapter`
+  </Accordion>
+
+  <Accordion title="Harsh Comment Simulator">
+    **ID:** `harsh-comment-simulator`
+
+    An adversarial comment simulator for metacognition, launch prep, creator review, and reputation pre-mortems. Simulates the kinds of harsh public reactions a post, page, product, image, or idea might receive, then translates those reactions into useful risks and fixes. Separates surface-level harsh comments, the legitimate concern underneath, and the response or revision that would reduce the risk.
+
+    **Allowed sources:** `current-page`, `open-tabs`, `history`, `selection`, `image`, `file`
+    **Allowed read strategies:** `dom`, `hybrid`, `vision`, `adapter`
+  </Accordion>
+</AccordionGroup>
+
+## Profile rerouting
+
+If the route planner determines that a different profile is a significantly better fit for your query, it may automatically switch to that profile for the turn. This happens transparently — a note appears in the response explaining which profile handled the request. Your selected profile is not permanently changed; it reverts to your choice on the next message.
+
+To disable automatic rerouting, keep a non-default profile selected. The planner only rereroutes away from the `default` profile when a specialist is clearly better suited.

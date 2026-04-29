@@ -1,0 +1,147 @@
+---
+title: "Release process and versioning for Chromex"
+description: "The full Chromex release checklist: versioning policy, GitHub flow, artifact naming, what is excluded from public releases, and how to tag and upload a release."
+---
+
+Chromex uses normal open-source release history from version `0.1.1` onward. Every release follows the same checklist: verify CI is green on all platforms, produce sanitized artifacts, tag from `main`, and upload to GitHub Releases. Do not rewrite public history for routine releases.
+
+## Versioning
+
+Chromex follows [semantic versioning](https://semver.org/):
+
+| Release type | Example | When to use |
+|---|---|---|
+| Patch | `0.1.2` | Bug fixes, security fixes, documentation updates, packaging fixes, small compatibility improvements |
+| Minor | `0.2.0` | User-visible features that remain backward compatible |
+| Major | `1.0.0` | Breaking changes in installation, native-host behavior, extension permissions, or public APIs |
+
+All workspace package versions must stay aligned with the root `package.json` version. When you bump the version, update `package.json` in the root and in each workspace package (`packages/shared`, `packages/bridge`, `packages/native-host`, `packages/extension`).
+
+## GitHub flow
+
+For normal development:
+
+1. Create a branch from `main`.
+2. Commit focused changes with clear messages.
+3. Open a pull request.
+4. Wait for CI to pass on Linux, macOS, and Windows.
+5. Squash or merge according to project preference.
+6. Tag releases from `main` after verification.
+
+<Warning>
+Never push the development workspace directly to GitHub. Public release archives must be created from `npm run package:public` output. The workspace contains internal files (`CODEX.md`, `.codex/`, harness files, generated images) that must never appear in a public repository.
+</Warning>
+
+## Release checklist
+
+<Steps>
+  <Step title="Update versions">
+    Update the version field in `package.json` at the repo root and in all four workspace `package.json` files. Then regenerate the lock file without running scripts:
+
+    ```bash
+    npm install --package-lock-only --ignore-scripts
+    ```
+  </Step>
+  <Step title="Verify typecheck and tests">
+    ```bash
+    npm run typecheck && npm run test
+    ```
+  </Step>
+  <Step title="Build all packages">
+    ```bash
+    npm run build
+    ```
+  </Step>
+  <Step title="Run the release hygiene audit">
+    ```bash
+    npm run release:audit
+    ```
+
+    This checks for accidentally included secrets, internal paths, development-only files, and other hygiene violations. Fix any findings before continuing.
+  </Step>
+  <Step title="Run the security audit">
+    ```bash
+    npm run audit
+    ```
+
+    Equivalent to `npm audit --audit-level=high --omit=dev`. Fix any `high` or `critical` findings in production dependencies before continuing.
+  </Step>
+  <Step title="Verify CI is green">
+    Confirm that the CI workflow passes on `ubuntu-latest`, `macos-latest`, and `windows-latest` before tagging.
+  </Step>
+  <Step title="Create the Chrome Web Store package (optional)">
+    If you are updating the Chrome Web Store listing:
+
+    ```bash
+    npm run package:webstore
+    ```
+
+    Output is written to `output/chrome-web-store/`.
+  </Step>
+  <Step title="Create public release artifacts">
+    ```bash
+    npm run package:public
+    ```
+
+    This produces four files under `output/public-release/`:
+
+    - `chromex-<version>-public-source-<timestamp>.zip`
+    - `chromex-<version>-unpacked-extension-<timestamp>.zip`
+    - `chromex-public-source.zip`
+    - `chromex-unpacked-extension.zip`
+
+    Inspect the artifacts under `output/public-release/` to confirm they look correct.
+  </Step>
+  <Step title="Tag and push">
+    ```bash
+    git tag v0.1.2
+    git push origin main
+    git push origin v0.1.2
+    ```
+  </Step>
+  <Step title="Upload release assets">
+    Create a GitHub Release for the new tag and attach all four artifacts from `output/public-release/`:
+
+    - `chromex-<version>-public-source-<timestamp>.zip`
+    - `chromex-<version>-unpacked-extension-<timestamp>.zip`
+    - `chromex-public-source.zip`
+    - `chromex-unpacked-extension.zip`
+
+    The stable names power the README direct-download links:
+
+    ```text
+    https://github.com/GENEXIS-AI/chromex/releases/latest/download/chromex-unpacked-extension.zip
+    https://github.com/GENEXIS-AI/chromex/releases/latest/download/chromex-public-source.zip
+    ```
+  </Step>
+</Steps>
+
+## What is excluded from public releases
+
+The `package:public` script sanitizes the source archive before publishing. The following are never included in a public release:
+
+| Category | Excluded items |
+|---|---|
+| Internal docs | `docs/`, `.codex/`, `.codex-sidepanel/`, `CODEX.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `MEMORY.md`, `*harness*.md` |
+| Build output | All `dist/` directories, `output/` |
+| Local artifacts | Local backups, generated images, log files |
+| Credentials and keys | API keys, OAuth tokens, signing keys, native-host generated manifests |
+| Local paths | Any file containing absolute paths to the developer's machine |
+
+<Note>
+If the packaging rules change, update `scripts/package-public-release.mjs`, `scripts/audit-git-history.mjs`, `packages/extension/test/open-source-hygiene.test.ts`, `RELEASE.md`, and `CODEX.md` together so all enforcement points stay consistent.
+</Note>
+
+## Compatibility policy
+
+Each release must preserve these expectations unless the release notes explicitly say otherwise:
+
+- Chrome MV3 extension loading remains supported through `packages/extension/dist`.
+- Chrome Web Store packages must not contain `manifest.key`, source maps, local build metadata, signing keys, or local machine paths.
+- Native-host installation must work on all Chrome-supported desktop operating systems.
+- OAuth is preferred over API-key fallback. API-key fallback requires explicit user confirmation.
+- Browser permissions remain feature-gated and are requested only when a feature needs them.
+
+## Release identity
+
+Chromex is published only to `GENEXIS-AI/chromex` under **GenexisAI CHOI**. Do not publish or release Chromex from any other account or repository.

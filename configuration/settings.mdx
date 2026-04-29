@@ -1,0 +1,102 @@
+---
+title: "Configuring Chromex settings and preferences"
+description: "Adjust language, theme, connection settings, model selection, and workspace options from the Chromex settings panel in the Chrome side panel."
+---
+
+The Chromex settings panel is your central place to control how the extension looks, connects to Codex, and handles conversation data. Open it by clicking the gear icon at the top-right corner of the Chromex side panel. Settings are organized into four sections: **General**, **Connection**, **Permissions**, and **Voice**.
+
+## General
+
+These settings control the visual appearance and language of the Chromex UI.
+
+<CardGroup cols={2}>
+  <Card title="App UI language" icon="language">
+    Controls the language used in the Chromex interface and instructs the model to respond in that language by default. Set to **Auto detect** to follow your browser language, or select from 55 supported Chrome locales in the dropdown.
+  </Card>
+  <Card title="UI theme" icon="palette">
+    Choose between **System** (follows your OS dark/light mode preference), **Dark**, or **Light**. The default is **System**.
+  </Card>
+</CardGroup>
+
+### Language selection
+
+Chromex follows your browser language automatically. If you want a specific language regardless of browser settings, go to **Settings → General → App UI language** and choose from the list.
+
+Chromex ships full locale support for these languages, among others:
+
+| Locale code | Language |
+|-------------|----------|
+| `en` | English |
+| `ko` | Korean (한국어) |
+| `ja` | Japanese (日本語) |
+| `zh-CN` | Chinese — China (中文简体) |
+| `zh-TW` | Chinese — Taiwan (中文繁體) |
+| `ar` | Arabic (العربية) |
+| `fr` | French (Français) |
+| `de` | German (Deutsch) |
+| `es` | Spanish (Español) |
+| `pt-BR` | Portuguese — Brazil |
+| `pt-PT` | Portuguese — Portugal |
+| `hi` | Hindi (हिन्दी) |
+| `vi` | Vietnamese (Tiếng Việt) |
+| `th` | Thai (ไทย) |
+| `tr` | Turkish (Türkçe) |
+| `uk` | Ukrainian (Українська) |
+
+<Tip>
+  Model responses follow the selected UI language unless you explicitly ask for a different language in your message.
+</Tip>
+
+Arabic (`ar`), Persian (`fa`), Hebrew (`he`), and Urdu (`ur`) are displayed right-to-left automatically when selected.
+
+## Connection
+
+The connection section shows the status of the two-layer bridge that links Chrome to Codex.
+
+<CardGroup cols={2}>
+  <Card title="Native bridge" icon="plug">
+    Shows whether the Chrome Native Messaging host is installed and reachable. If this shows a disconnected status, run `node scripts/install-native-host.mjs` and reload the extension.
+  </Card>
+  <Card title="Codex app-server" icon="server">
+    Shows whether the local Codex app-server is running and authenticated. Model lists and conversation threads load only when this connection is active.
+  </Card>
+</CardGroup>
+
+The runtime boundary is:
+
+```text
+Chrome Extension → Native Messaging Host → Local Bridge → Codex app-server
+```
+
+Credentials never pass through Chrome extension storage. Authentication is handled by the Codex app-server on your local machine.
+
+## Model selection
+
+When the Codex app-server connection is active, Chromex loads the list of available models directly from Codex. To change the active model:
+
+1. Open **Settings → Connection**.
+2. Select a model from the **Model** dropdown.
+3. The selection takes effect on the next message you send.
+
+<Note>
+  Some models support additional options like reasoning effort and speed tiers. These appear as sub-options beneath the model name when available.
+</Note>
+
+## Workspace
+
+<CardGroup cols={2}>
+  <Card title="Chat history persistence" icon="clock-rotate-left">
+    Conversation history is session-only by default — it clears when you close the side panel. Enable **Persist chat history on this device** to save conversations to local browser storage. This is opt-in and never synced to a remote server.
+  </Card>
+  <Card title="External skills root" icon="folder-open">
+    Point Chromex to an additional directory of Codex skills on your local machine. Chromex will scan that directory for `SKILL.md` files and make those skills available alongside the built-in skill list.
+  </Card>
+</CardGroup>
+
+<Warning>
+  Enabling persistent chat history stores conversation content in your browser's local storage on this device. It does not sync across devices or to any remote service. Disable this option if you work on a shared machine.
+</Warning>
+
+## Voice
+
+The **Voice** section contains settings for microphone input and voice session behavior. Microphone access is an optional permission — Chrome will prompt you to grant it the first time you use a voice feature. See [Permissions](/configuration/permissions) for details on how Chrome handles optional permission requests.
